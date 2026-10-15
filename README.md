@@ -7,7 +7,7 @@ Sistema web desenvolvido para gerenciar o inventário de equipamentos de Tecnolo
 - **Gestão de Equipamentos**: Cadastro, edição, exclusão e visualização de equipamentos divididos por categorias (Notebook, Desktop, Celular, Impressora, Monitor, etc.).
 - **Gestão de Colaboradores**: Controle de funcionários, departamentos e visualização de equipamentos vinculados a cada colaborador. Opção de exclusão (demissão) com devolução automática de itens ao estoque.
 - **Movimentações**: Registro de entrega e devolução de equipamentos.
-- **Termos de Responsabilidade**: Geração automática de Termos de Responsabilidade em formato PDF no momento da entrega do equipamento, pronto para assinatura.
+- **Termos de Responsabilidade & Arquivamento Digital**: Geração automática do termo em PDF modelo oficial DIA pronto para assinatura e **anexação/upload do documento assinado** (digitalmente ou escaneado/foto em PDF, PNG, JPG), com controle visual de status (Pendente ou Assinado), consulta imediata e substituição a qualquer momento.
 - **Relatórios**: Exportação do inventário completo para os formatos Excel (.xlsx) e PDF.
 - **Controle de Acesso**: Perfis de acesso distintos (ADMIN com controle total e RH com acesso restrito a colaboradores e termos).
 - **Acesso em Rede**: Configurado para ser acessível por outros computadores na mesma rede local.

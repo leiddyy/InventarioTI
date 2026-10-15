@@ -92,6 +92,7 @@ class Movimentacao(Base):
     observacoes_devolucao = Column(Text, nullable=True)
     
     assinado = Column(Boolean, default=False)
+    arquivo_termo_assinado = Column(String, nullable=True)
 
     equipamento = relationship("Equipamento", back_populates="movimentacoes")
     funcionario = relationship("Funcionario", back_populates="movimentacoes")

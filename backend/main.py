@@ -1,9 +1,13 @@
-from fastapi import FastAPI, Depends, HTTPException, Response
+from fastapi import FastAPI, Depends, HTTPException, Response, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, FileResponse
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 from typing import List, Optional
 from datetime import datetime
+import os
+import shutil
+import re
 
 from database import engine, get_db, Base
 import models
@@ -12,6 +16,19 @@ from pdf_generator import gerar_pdf_termo_responsabilidade
 from report_generator import gerar_excel_inventario, gerar_pdf_inventario
 
 Base.metadata.create_all(bind=engine)
+
+# Migração segura para adicionar coluna arquivo_termo_assinado se não existir
+try:
+    with engine.connect() as conn:
+        cols = [col[1] for col in conn.execute(text("PRAGMA table_info(movimentacoes)")).fetchall()]
+        if "arquivo_termo_assinado" not in cols:
+            conn.execute(text("ALTER TABLE movimentacoes ADD COLUMN arquivo_termo_assinado VARCHAR;"))
+            conn.commit()
+except Exception as e:
+    print(f"Aviso de migração: {e}")
+
+UPLOAD_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "uploads", "termos")
+os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 app = FastAPI(title="Sistema de Inventário de TI - DIA Distribuição", version="2.7.0")
 
@@ -26,13 +43,19 @@ app.add_middleware(
 # --- AUTENTICAÇÃO / LOGIN ---
 @app.post("/api/auth/login", response_model=schemas.LoginResponse)
 def login(login_data: schemas.LoginRequest, db: Session = Depends(get_db)):
-    usuario = db.query(models.Usuario).filter(models.Usuario.email == login_data.email).first()
+    login_user = login_data.email.strip().lower()
+
+    # Aceita tanto nome.sobrenome quanto nome.sobrenome@diadistribuicao.com.br
+    if "@" in login_user:
+        usuario = db.query(models.Usuario).filter(models.Usuario.email.ilike(login_user)).first()
+    else:
+        usuario = db.query(models.Usuario).filter(
+            (models.Usuario.email.ilike(f"{login_user}@%")) |
+            (models.Usuario.email.ilike(login_user))
+        ).first()
+
     if not usuario or usuario.senha != login_data.senha:
-        usuario_alt = db.query(models.Usuario).filter(models.Usuario.email.like(f"%{login_data.email}%")).first()
-        if usuario_alt and usuario_alt.senha == login_data.senha:
-            usuario = usuario_alt
-        else:
-            raise HTTPException(status_code=401, detail="E-mail ou senha incorretos.")
+        raise HTTPException(status_code=401, detail="Usuário ou senha incorretos.")
 
     return {
         "token": f"token-session-{usuario.id}-ti",
@@ -46,12 +69,16 @@ def list_usuarios(db: Session = Depends(get_db)):
 
 @app.post("/api/usuarios", response_model=schemas.UsuarioResponse)
 def create_usuario(user: schemas.UsuarioCreate, db: Session = Depends(get_db)):
-    if db.query(models.Usuario).filter(models.Usuario.email == user.email).first():
-        raise HTTPException(status_code=400, detail="Este e-mail já está cadastrado para outro usuário.")
+    clean_email = user.email.strip().lower()
+    if "@" not in clean_email:
+        clean_email = f"{clean_email}@diadistribuicao.com.br"
+
+    if db.query(models.Usuario).filter(models.Usuario.email == clean_email).first():
+        raise HTTPException(status_code=400, detail="Este usuário já está cadastrado no sistema.")
 
     db_user = models.Usuario(
         nome=user.nome,
-        email=user.email,
+        email=clean_email,
         senha=user.senha,
         perfil=user.perfil,
         cargo=user.cargo
@@ -137,8 +164,17 @@ def delete_funcionario(id: int, db: Session = Depends(get_db)):
         eq.responsavel = "Estoque"
         eq.setor = "TI / Estoque"
 
-    # Remove movimentações associadas antes de excluir
-    db.query(models.Movimentacao).filter(models.Movimentacao.funcionario_id == id).delete()
+    # Remove movimentações associadas e arquivos físicos antes de excluir
+    movs = db.query(models.Movimentacao).filter(models.Movimentacao.funcionario_id == id).all()
+    for m in movs:
+        if m.arquivo_termo_assinado:
+            p = os.path.join(UPLOAD_DIR, m.arquivo_termo_assinado)
+            if os.path.exists(p):
+                try:
+                    os.remove(p)
+                except Exception:
+                    pass
+        db.delete(m)
 
     db.delete(func)
     db.commit()
@@ -209,8 +245,18 @@ def delete_equipamento(id: int, db: Session = Depends(get_db)):
     if not db_eq:
         raise HTTPException(status_code=404, detail="Equipamento não encontrado.")
 
-    # Apagar movimentações associadas se existirem
-    db.query(models.Movimentacao).filter(models.Movimentacao.equipamento_id == id).delete()
+    # Apagar movimentações associadas e arquivos físicos se existirem
+    movs = db.query(models.Movimentacao).filter(models.Movimentacao.equipamento_id == id).all()
+    for m in movs:
+        if m.arquivo_termo_assinado:
+            p = os.path.join(UPLOAD_DIR, m.arquivo_termo_assinado)
+            if os.path.exists(p):
+                try:
+                    os.remove(p)
+                except Exception:
+                    pass
+        db.delete(m)
+
     db.delete(db_eq)
     db.commit()
     return {"message": "Equipamento excluído com sucesso."}
@@ -280,3 +326,82 @@ def download_termo_pdf(id: int, db: Session = Depends(get_db)):
         media_type="application/pdf",
         headers={"Content-Disposition": f"inline; filename={filename}"}
     )
+
+# --- UPLOAD E VISUALIZAÇÃO DO TERMO ASSINADO ---
+@app.post("/api/movimentacoes/{id}/upload-termo", response_model=schemas.MovimentacaoResponse)
+def upload_termo_assinado(id: int, file: UploadFile = File(...), db: Session = Depends(get_db)):
+    mov = db.query(models.Movimentacao).filter(models.Movimentacao.id == id).first()
+    if not mov:
+        raise HTTPException(status_code=404, detail="Movimentação não encontrada.")
+
+    # Validar formato de arquivo aceito
+    ext = os.path.splitext(file.filename)[1].lower() if file.filename else ""
+    allowed_exts = [".pdf", ".jpg", ".jpeg", ".png"]
+    if ext not in allowed_exts:
+        raise HTTPException(status_code=400, detail="Formato inválido. Por favor envie um arquivo PDF, JPG ou PNG.")
+
+    # Remover arquivo anterior se já existia
+    if mov.arquivo_termo_assinado:
+        old_file_path = os.path.join(UPLOAD_DIR, mov.arquivo_termo_assinado)
+        if os.path.exists(old_file_path):
+            try:
+                os.remove(old_file_path)
+            except Exception:
+                pass
+
+    # Nome amigável e seguro para o arquivo
+    safe_patrimonio = re.sub(r'[^a-zA-Z0-9_-]', '_', mov.equipamento.patrimonio if mov.equipamento else "EQP")
+    safe_nome = re.sub(r'[^a-zA-Z0-9_-]', '_', mov.funcionario.nome if mov.funcionario else "FUNC")
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    novo_nome_arquivo = f"Termo_Assinado_{mov.id}_{safe_patrimonio}_{safe_nome}_{timestamp}{ext}"
+    caminho_salvar = os.path.join(UPLOAD_DIR, novo_nome_arquivo)
+
+    with open(caminho_salvar, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    mov.arquivo_termo_assinado = novo_nome_arquivo
+    mov.assinado = True
+    db.commit()
+    db.refresh(mov)
+    return mov
+
+@app.get("/api/movimentacoes/{id}/termo-assinado")
+def get_termo_assinado(id: int, db: Session = Depends(get_db)):
+    mov = db.query(models.Movimentacao).filter(models.Movimentacao.id == id).first()
+    if not mov or not mov.arquivo_termo_assinado:
+        raise HTTPException(status_code=404, detail="Nenhum termo assinado anexado a esta movimentação.")
+
+    caminho_arquivo = os.path.join(UPLOAD_DIR, mov.arquivo_termo_assinado)
+    if not os.path.exists(caminho_arquivo):
+        raise HTTPException(status_code=404, detail="Arquivo físico do termo assinado não encontrado no servidor.")
+
+    ext = os.path.splitext(mov.arquivo_termo_assinado)[1].lower()
+    media_type = "application/pdf" if ext == ".pdf" else f"image/{ext.replace('.', '')}"
+    if ext in [".jpg", ".jpeg"]:
+        media_type = "image/jpeg"
+
+    return FileResponse(
+        caminho_arquivo,
+        media_type=media_type,
+        headers={"Content-Disposition": f"inline; filename={mov.arquivo_termo_assinado}"}
+    )
+
+@app.delete("/api/movimentacoes/{id}/termo-assinado")
+def delete_termo_assinado(id: int, db: Session = Depends(get_db)):
+    mov = db.query(models.Movimentacao).filter(models.Movimentacao.id == id).first()
+    if not mov:
+        raise HTTPException(status_code=404, detail="Movimentação não encontrada.")
+
+    if mov.arquivo_termo_assinado:
+        caminho_arquivo = os.path.join(UPLOAD_DIR, mov.arquivo_termo_assinado)
+        if os.path.exists(caminho_arquivo):
+            try:
+                os.remove(caminho_arquivo)
+            except Exception:
+                pass
+        mov.arquivo_termo_assinado = None
+        mov.assinado = False
+        db.commit()
+
+    return {"message": "Termo assinado removido com sucesso."}
+

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { Usuario, PerfilUsuario } from '../types';
-import { UserPlus, Shield, Trash2, X, Search, Lock, Mail, User } from 'lucide-react';
+import { UserPlus, Shield, Trash2, X, Search, Lock, User } from 'lucide-react';
 import { api } from '../api';
 
 interface UsuariosViewProps {
@@ -109,7 +109,7 @@ export const UsuariosView: React.FC<UsuariosViewProps> = ({ usuarios, currentUse
             <thead className="bg-dia-navy text-xs uppercase text-white font-bold border-b border-slate-200">
               <tr>
                 <th className="py-3.5 px-4">Nome do Usuário</th>
-                <th className="py-3.5 px-4">E-mail Corporativo</th>
+                <th className="py-3.5 px-4">Usuário de Acesso</th>
                 <th className="py-3.5 px-4">Cargo / Função</th>
                 <th className="py-3.5 px-4 text-center">Perfil de Acesso</th>
                 <th className="py-3.5 px-4 text-right">Ações</th>
@@ -135,7 +135,10 @@ export const UsuariosView: React.FC<UsuariosViewProps> = ({ usuarios, currentUse
                       </div>
                     </td>
                     <td className="py-3.5 px-4 text-xs font-mono font-medium text-slate-600">
-                      {u.email}
+                      <span className="font-extrabold text-dia-navy">{u.email.split('@')[0]}</span>
+                      {u.email.includes('@') && (
+                        <span className="text-slate-400 font-normal">@{u.email.split('@')[1]}</span>
+                      )}
                     </td>
                     <td className="py-3.5 px-4 text-xs font-semibold text-slate-700">
                       {u.cargo}
@@ -192,18 +195,19 @@ export const UsuariosView: React.FC<UsuariosViewProps> = ({ usuarios, currentUse
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">E-mail Corporativo *</label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Usuário de Acesso *</label>
                   <div className="relative">
-                    <Mail className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-3" />
+                    <User className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-3" />
                     <input
-                      type="email"
+                      type="text"
                       required
-                      placeholder="usuario@diadistribuicao.com.br"
+                      placeholder="nome.sobrenome (ex: carlos.silva)"
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                       className="w-full bg-slate-50 text-slate-900 text-sm pl-9 pr-3 py-2.5 rounded-xl border border-slate-200"
                     />
                   </div>
+                  <p className="text-[10px] text-slate-400 mt-1">Pode digitar apenas nome.sobrenome.</p>
                 </div>
 
                 <div>

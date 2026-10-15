@@ -126,6 +126,7 @@ class MovimentacaoResponse(BaseModel):
     condicao_devolucao: Optional[str] = None
     observacoes_devolucao: Optional[str] = None
     assinado: bool
+    arquivo_termo_assinado: Optional[str] = None
     equipamento: EquipamentoResponse
     funcionario: FuncionarioResponse
 

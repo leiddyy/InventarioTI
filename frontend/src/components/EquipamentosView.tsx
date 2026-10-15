@@ -3,6 +3,7 @@ import type { Equipamento, StatusEquipamento } from '../types';
 import { Plus, Search, Filter, Laptop, Edit2, X, Check, Layers, UserCheck, Building2, FileSpreadsheet, FileText, Trash2 } from 'lucide-react';
 import { api } from '../api';
 import { ConfirmModal } from './ConfirmModal';
+import { CustomSelect, type CustomSelectOption } from './CustomSelect';
 
 interface EquipamentosViewProps {
   equipamentos: Equipamento[];
@@ -65,6 +66,43 @@ export const EquipamentosView: React.FC<EquipamentosViewProps> = ({ equipamentos
 
     return matchesSearch && matchesStatus && matchesCategoria;
   });
+
+  const categoriaOptions: CustomSelectOption[] = [
+    { value: 'ALL', label: 'Todas as Categorias', count: equipamentos.length },
+    ...CATEGORIAS_LIST.map((cat) => ({
+      value: cat,
+      label: cat,
+      count: equipamentos.filter((e) => e.categoria === cat).length,
+    })),
+  ];
+
+  const statusOptions: CustomSelectOption[] = [
+    { value: 'ALL', label: 'Todos os Status', count: equipamentos.length },
+    {
+      value: 'DISPONIVEL',
+      label: 'Disponível',
+      colorDot: 'bg-emerald-500',
+      count: equipamentos.filter((e) => e.status === 'DISPONIVEL').length,
+    },
+    {
+      value: 'EM_USO',
+      label: 'Em Uso',
+      colorDot: 'bg-indigo-500',
+      count: equipamentos.filter((e) => e.status === 'EM_USO').length,
+    },
+    {
+      value: 'MANUTENCAO',
+      label: 'Em Manutenção',
+      colorDot: 'bg-amber-500',
+      count: equipamentos.filter((e) => e.status === 'MANUTENCAO').length,
+    },
+    {
+      value: 'DESCARTADO',
+      label: 'Descartado',
+      colorDot: 'bg-rose-500',
+      count: equipamentos.filter((e) => e.status === 'DESCARTADO').length,
+    },
+  ];
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -200,35 +238,39 @@ export const EquipamentosView: React.FC<EquipamentosViewProps> = ({ equipamentos
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {/* Categoria Filter */}
-          <div className="flex items-center space-x-1">
-            <Layers className="w-4 h-4 text-slate-400" />
-            <select
-              value={categoriaFilter}
-              onChange={(e) => setCategoriaFilter(e.target.value)}
-              className="bg-slate-50 text-slate-900 text-sm px-3 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-dia-navy"
-            >
-              <option value="ALL">Todas as Categorias</option>
-              {CATEGORIAS_LIST.map((cat) => (
-                <option key={cat} value={cat}>{cat}</option>
-              ))}
-            </select>
-          </div>
+          <CustomSelect
+            value={categoriaFilter}
+            onChange={setCategoriaFilter}
+            options={categoriaOptions}
+            icon={<Layers className="w-4 h-4" />}
+            placeholder="Todas as Categorias"
+          />
 
           {/* Status Filter */}
-          <div className="flex items-center space-x-1">
-            <Filter className="w-4 h-4 text-slate-400" />
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="bg-slate-50 text-slate-900 text-sm px-3 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-dia-navy"
+          <CustomSelect
+            value={statusFilter}
+            onChange={setStatusFilter}
+            options={statusOptions}
+            icon={<Filter className="w-4 h-4" />}
+            placeholder="Todos os Status"
+          />
+
+          {/* Botão de limpar filtros se algum estiver ativo */}
+          {(categoriaFilter !== 'ALL' || statusFilter !== 'ALL' || searchTerm !== '') && (
+            <button
+              type="button"
+              onClick={() => {
+                setCategoriaFilter('ALL');
+                setStatusFilter('ALL');
+                setSearchTerm('');
+              }}
+              className="text-xs text-slate-500 hover:text-dia-navy font-bold px-3 py-2 hover:bg-slate-100 rounded-xl transition flex items-center gap-1 border border-transparent hover:border-slate-200"
+              title="Limpar todos os filtros"
             >
-              <option value="ALL">Todos os Status</option>
-              <option value="DISPONIVEL">Disponível</option>
-              <option value="EM_USO">Em Uso</option>
-              <option value="MANUTENCAO">Em Manutenção</option>
-              <option value="DESCARTADO">Descartado</option>
-            </select>
-          </div>
+              <X className="w-3.5 h-3.5" />
+              <span>Limpar</span>
+            </button>
+          )}
         </div>
       </div>
 

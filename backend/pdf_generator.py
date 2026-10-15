@@ -331,13 +331,12 @@ def gerar_pdf_termo_responsabilidade(movimentacao) -> io.BytesIO:
 
     # Signatures
     gerente = movimentacao.nome_gerente or "Gerente de Setor"
-    ti_resp = movimentacao.nome_responsavel_ti or "Leidiane Silva - TI"
 
     sig_data = [
         [
             Paragraph("___________________________________<br/><b>Colaborador</b><br/>" + func.nome, ParagraphStyle('Sig1', parent=cell_style, alignment=1)),
             Paragraph("___________________________________<br/><b>Gerente</b><br/>" + gerente, ParagraphStyle('Sig2', parent=cell_style, alignment=1)),
-            Paragraph("___________________________________<br/><b>TI</b><br/>" + ti_resp, ParagraphStyle('Sig3', parent=cell_style, alignment=1))
+            Paragraph("___________________________________<br/><b>TI</b>", ParagraphStyle('Sig3', parent=cell_style, alignment=1))
         ]
     ]
     t_sig = Table(sig_data, colWidths=[180, 180, 180])
