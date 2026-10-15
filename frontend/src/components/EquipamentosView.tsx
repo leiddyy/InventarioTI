@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import type { Equipamento, StatusEquipamento } from '../types';
 import { Plus, Search, Filter, Laptop, Edit2, X, Check, Layers, UserCheck, Building2, FileSpreadsheet, FileText, Trash2 } from 'lucide-react';
 import { api } from '../api';
+import { ConfirmModal } from './ConfirmModal';
 
 interface EquipamentosViewProps {
   equipamentos: Equipamento[];
@@ -109,17 +110,24 @@ export const EquipamentosView: React.FC<EquipamentosViewProps> = ({ equipamentos
     }
   };
 
-  const handleDeleteEquipamento = async (eq: Equipamento) => {
-    const confirmDelete = window.confirm(
-      `Tem certeza que deseja excluir o equipamento [${eq.patrimonio}] - ${eq.marca} ${eq.modelo}?\nEsta ação não poderá ser desfeita.`
-    );
-    if (!confirmDelete) return;
+  const [equipamentoToDelete, setEquipamentoToDelete] = useState<Equipamento | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
+  const confirmDeleteEquipamento = async () => {
+    if (!equipamentoToDelete) return;
     try {
-      await api.deleteEquipamento(eq.id);
+      setIsDeleting(true);
+      await api.deleteEquipamento(equipamentoToDelete.id);
+      const deletedId = equipamentoToDelete.id;
+      setEquipamentoToDelete(null);
+      if (editingEquipamento?.id === deletedId) {
+        setEditingEquipamento(null);
+      }
       onRefresh();
     } catch (err: any) {
       alert(err.response?.data?.detail || 'Erro ao excluir equipamento');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -295,7 +303,7 @@ export const EquipamentosView: React.FC<EquipamentosViewProps> = ({ equipamentos
                           <Edit2 className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => handleDeleteEquipamento(eq)}
+                          onClick={() => setEquipamentoToDelete(eq)}
                           className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg transition border border-rose-200"
                           title="Excluir Equipamento"
                         >
@@ -562,9 +570,7 @@ export const EquipamentosView: React.FC<EquipamentosViewProps> = ({ equipamentos
               <button
                 type="button"
                 onClick={() => {
-                  const eq = editingEquipamento;
-                  setEditingEquipamento(null);
-                  handleDeleteEquipamento(eq);
+                  setEquipamentoToDelete(editingEquipamento);
                 }}
                 className="flex items-center space-x-1.5 px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl text-xs font-bold transition border border-rose-200"
               >
@@ -583,6 +589,23 @@ export const EquipamentosView: React.FC<EquipamentosViewProps> = ({ equipamentos
           </div>
         </div>
       )}
+
+      {/* Modal de Confirmação de Exclusão de Equipamento */}
+      <ConfirmModal
+        isOpen={!!equipamentoToDelete}
+        onClose={() => setEquipamentoToDelete(null)}
+        onConfirm={confirmDeleteEquipamento}
+        isLoading={isDeleting}
+        title="Excluir Equipamento"
+        description="Confirmação de exclusão do inventário"
+        itemName={equipamentoToDelete ? `${equipamentoToDelete.tipo} - ${equipamentoToDelete.marca} ${equipamentoToDelete.modelo}` : ''}
+        itemBadge={equipamentoToDelete?.categoria}
+        itemSub={equipamentoToDelete ? `Patrimônio: ${equipamentoToDelete.patrimonio} • S/N: ${equipamentoToDelete.numero_serie || 'N/A'}` : ''}
+        warningNote="O histórico de termos e movimentações vinculado a este equipamento também será removido do sistema."
+        confirmText="Sim, Excluir Equipamento"
+        cancelText="Cancelar"
+        isDanger={true}
+      />
     </div>
   );
 };

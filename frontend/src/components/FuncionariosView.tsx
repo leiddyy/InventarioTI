@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import type { Funcionario, Movimentacao } from '../types';
-import { Users, Plus, Search, UserCheck, X, HardDrive, FileText, Trash2 } from 'lucide-react';
+import { Users, Plus, Search, UserCheck, X, HardDrive, FileText, Trash2, Upload, FileCheck, CheckCircle2, Clock } from 'lucide-react';
 import { api } from '../api';
+import { ConfirmModal } from './ConfirmModal';
 
 interface FuncionariosViewProps {
   funcionarios: Funcionario[];
@@ -54,17 +55,44 @@ export const FuncionariosView: React.FC<FuncionariosViewProps> = ({ funcionarios
     );
   };
 
-  const handleDeleteFuncionario = async (func: Funcionario) => {
-    const confirmDelete = window.confirm(
-      `Tem certeza que deseja excluir o colaborador "${func.nome}" (CPF: ${func.cpf})?\n\nSe houver equipamentos vinculados, eles serão devolvidos ao estoque automaticamente.\n\nEsta ação não poderá ser desfeita.`
-    );
-    if (!confirmDelete) return;
+  const [funcionarioToDelete, setFuncionarioToDelete] = useState<Funcionario | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
+  const confirmDeleteFuncionario = async () => {
+    if (!funcionarioToDelete) return;
     try {
-      await api.deleteFuncionario(func.id);
+      setIsDeleting(true);
+      await api.deleteFuncionario(funcionarioToDelete.id);
+      setFuncionarioToDelete(null);
       onRefresh();
     } catch (err: any) {
       alert(err.response?.data?.detail || 'Erro ao excluir colaborador');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const [uploadingId, setUploadingId] = useState<number | null>(null);
+
+  const handleFileUpload = async (movId: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 20 * 1024 * 1024) {
+      alert('O arquivo selecionado é muito grande. O limite máximo é de 20MB.');
+      return;
+    }
+
+    try {
+      setUploadingId(movId);
+      await api.uploadTermoAssinado(movId, file);
+      onRefresh();
+      alert('Termo assinado anexado com sucesso!');
+    } catch (err: any) {
+      alert(err.response?.data?.detail || 'Erro ao anexar arquivo do termo assinado.');
+    } finally {
+      setUploadingId(null);
+      e.target.value = '';
     }
   };
 
@@ -139,7 +167,7 @@ export const FuncionariosView: React.FC<FuncionariosViewProps> = ({ funcionarios
                       Ver Ativos & Termos
                     </button>
                     <button
-                      onClick={() => handleDeleteFuncionario(func)}
+                      onClick={() => setFuncionarioToDelete(func)}
                       className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg transition border border-rose-200"
                       title="Excluir Colaborador (Demissão)"
                     >
@@ -268,21 +296,70 @@ export const FuncionariosView: React.FC<FuncionariosViewProps> = ({ funcionarios
                 <p className="text-sm text-slate-500 py-4 text-center">Nenhum equipamento vinculado a este colaborador no momento.</p>
               ) : (
                 getActiveEquipmentForFuncionario(selectedFuncionario.id).map((m) => (
-                  <div key={m.id} className="p-4 bg-slate-50 rounded-xl border border-slate-200 flex justify-between items-center">
+                  <div key={m.id} className="p-4 bg-slate-50 rounded-xl border border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                     <div>
-                      <span className="font-mono font-extrabold text-dia-navy text-xs">{m.equipamento?.patrimonio}</span>
-                      <p className="text-sm font-bold text-slate-900">{m.equipamento?.tipo} - {m.equipamento?.marca} {m.equipamento?.modelo}</p>
-                      <p className="text-xs text-slate-500 mt-0.5">Nº de Série: {m.equipamento?.numero_serie}</p>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-extrabold text-dia-navy text-xs">{m.equipamento?.patrimonio}</span>
+                        {m.arquivo_termo_assinado ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                            Assinado
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-300">
+                            <Clock className="w-3 h-3 text-amber-500" />
+                            Pendente
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-sm font-bold text-slate-900 mt-0.5">{m.equipamento?.tipo} - {m.equipamento?.marca} {m.equipamento?.modelo}</p>
+                      <p className="text-xs text-slate-500">Nº de Série: {m.equipamento?.numero_serie || 'N/A'}</p>
                     </div>
-                    <a
-                      href={api.getTermoPdfUrl(m.id)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1.5 px-3.5 py-1.5 bg-dia-navy hover:bg-dia-navy-dark text-white rounded-lg text-xs font-bold transition shadow-sm"
-                    >
-                      <FileText className="w-3.5 h-3.5 text-amber-400" />
-                      Termo PDF
-                    </a>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <a
+                        href={api.getTermoPdfUrl(m.id)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-slate-200 hover:bg-slate-300 text-dia-navy rounded-lg text-xs font-bold transition"
+                        title="Baixar via original (PDF)"
+                      >
+                        <FileText className="w-3.5 h-3.5 text-slate-600" />
+                        Original
+                      </a>
+
+                      {m.arquivo_termo_assinado ? (
+                        <a
+                          href={api.getTermoAssinadoUrl(m.id)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold transition shadow-sm"
+                          title="Visualizar documento assinado anexado"
+                        >
+                          <FileCheck className="w-3.5 h-3.5 text-amber-300" />
+                          Ver Assinado
+                        </a>
+                      ) : (
+                        <label
+                          className={`cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition shadow-sm ${
+                            uploadingId === m.id
+                              ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
+                              : 'bg-dia-navy hover:bg-dia-navy-dark text-white'
+                          }`}
+                          title="Anexar documento assinado (PDF, JPG ou PNG)"
+                        >
+                          <Upload className="w-3.5 h-3.5 text-amber-400" />
+                          <span>{uploadingId === m.id ? 'Enviando...' : 'Anexar Assinado'}</span>
+                          <input
+                            type="file"
+                            className="hidden"
+                            accept=".pdf,.png,.jpg,.jpeg"
+                            disabled={uploadingId === m.id}
+                            onChange={(e) => handleFileUpload(m.id, e)}
+                          />
+                        </label>
+                      )}
+                    </div>
                   </div>
                 ))
               )}
@@ -290,6 +367,23 @@ export const FuncionariosView: React.FC<FuncionariosViewProps> = ({ funcionarios
           </div>
         </div>
       )}
+
+      {/* Modal de Confirmação de Exclusão */}
+      <ConfirmModal
+        isOpen={!!funcionarioToDelete}
+        onClose={() => setFuncionarioToDelete(null)}
+        onConfirm={confirmDeleteFuncionario}
+        isLoading={isDeleting}
+        title="Excluir Colaborador"
+        description="Confirmação de desligamento / demissão"
+        itemName={funcionarioToDelete?.nome}
+        itemBadge={funcionarioToDelete?.departamento}
+        itemSub={funcionarioToDelete ? `CPF: ${funcionarioToDelete.cpf} • ${funcionarioToDelete.cargo}` : ''}
+        warningNote="Se houver equipamentos vinculados a este colaborador, eles serão devolvidos ao estoque imediatamente com status Disponível."
+        confirmText="Sim, Excluir Colaborador"
+        cancelText="Cancelar"
+        isDanger={true}
+      />
     </div>
   );
 };

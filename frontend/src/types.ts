@@ -58,6 +58,7 @@ export interface Movimentacao {
   condicao_devolucao?: string;
   observacoes_devolucao?: string;
   assinado: boolean;
+  arquivo_termo_assinado?: string;
   equipamento: Equipamento;
   funcionario: Funcionario;
 }

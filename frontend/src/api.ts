@@ -100,6 +100,25 @@ export const api = {
     return `${API_BASE}/movimentacoes/${movimentacao_id}/termo-pdf`;
   },
 
+  uploadTermoAssinado: async (movimentacao_id: number, file: File): Promise<Movimentacao> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await axios.post(`${API_BASE}/movimentacoes/${movimentacao_id}/upload-termo`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return res.data;
+  },
+
+  getTermoAssinadoUrl: (movimentacao_id: number): string => {
+    return `${API_BASE}/movimentacoes/${movimentacao_id}/termo-assinado`;
+  },
+
+  deleteTermoAssinado: async (movimentacao_id: number): Promise<void> => {
+    await axios.delete(`${API_BASE}/movimentacoes/${movimentacao_id}/termo-assinado`);
+  },
+
   getInventoryExcelUrl: (): string => {
     return `${API_BASE}/equipamentos/export/excel`;
   },

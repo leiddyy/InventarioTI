@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import type { Equipamento, Funcionario, Movimentacao } from '../types';
-import { RefreshCw, Plus, FileText, ArrowRight, X, CheckCircle } from 'lucide-react';
+import { RefreshCw, Plus, FileText, ArrowRight, X, CheckCircle, Upload, FileCheck, CheckCircle2, Clock, Trash2 } from 'lucide-react';
 import { api } from '../api';
+import { ConfirmModal } from './ConfirmModal';
 
 interface MovimentacoesViewProps {
   movimentacoes: Movimentacao[];
@@ -110,6 +111,48 @@ export const MovimentacoesView: React.FC<MovimentacoesViewProps> = ({
     }
   };
 
+  const [uploadingId, setUploadingId] = useState<number | null>(null);
+
+  const handleFileUpload = async (movId: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 20 * 1024 * 1024) {
+      alert('O arquivo selecionado é muito grande. O limite máximo é de 20MB.');
+      return;
+    }
+
+    try {
+      setUploadingId(movId);
+      await api.uploadTermoAssinado(movId, file);
+      onRefresh();
+      alert('Termo assinado anexado com sucesso!');
+    } catch (err: any) {
+      alert(err.response?.data?.detail || 'Erro ao anexar arquivo do termo assinado.');
+    } finally {
+      setUploadingId(null);
+      e.target.value = '';
+    }
+  };
+
+  const [termoToDeleteId, setTermoToDeleteId] = useState<number | null>(null);
+  const [isDeletingTermo, setIsDeletingTermo] = useState(false);
+
+  const confirmDeleteAssinado = async () => {
+    if (!termoToDeleteId) return;
+
+    try {
+      setIsDeletingTermo(true);
+      await api.deleteTermoAssinado(termoToDeleteId);
+      setTermoToDeleteId(null);
+      onRefresh();
+    } catch (err: any) {
+      alert(err.response?.data?.detail || 'Erro ao remover termo assinado.');
+    } finally {
+      setIsDeletingTermo(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header Bar with Strong Navy Title */}
@@ -185,13 +228,14 @@ export const MovimentacoesView: React.FC<MovimentacoesViewProps> = ({
                 <th className="py-3.5 px-4">Colaborador / CPF</th>
                 <th className="py-3.5 px-4">Equipamento (Patrimônio)</th>
                 <th className="py-3.5 px-4">Acessórios Inclusos</th>
-                <th className="py-3.5 px-4 text-center">Termo PDF</th>
+                <th className="py-3.5 px-4 text-center">Status Termo</th>
+                <th className="py-3.5 px-4 text-center">Documentos & Assinatura</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {movimentacoes.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-8 text-center text-slate-400 font-medium">
+                  <td colSpan={7} className="py-8 text-center text-slate-400 font-medium">
                     Nenhuma movimentação registrada.
                   </td>
                 </tr>
@@ -220,15 +264,90 @@ export const MovimentacoesView: React.FC<MovimentacoesViewProps> = ({
                       {mov.acessorios_inclusos || 'Nenhum'}
                     </td>
                     <td className="py-3.5 px-4 text-center">
-                      <a
-                        href={api.getTermoPdfUrl(mov.id)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-dia-navy hover:bg-dia-navy-dark text-white rounded-lg text-xs font-bold transition shadow-sm"
-                      >
-                        <FileText className="w-3.5 h-3.5 text-amber-400" />
-                        Termo PDF (DIA)
-                      </a>
+                      {mov.arquivo_termo_assinado ? (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                          Assinado
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-300">
+                          <Clock className="w-3.5 h-3.5 text-amber-500" />
+                          Pendente
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-3.5 px-4 text-center">
+                      <div className="inline-flex items-center gap-2">
+                        {/* Botão para gerar/baixar termo original em branco */}
+                        <a
+                          href={api.getTermoPdfUrl(mov.id)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-dia-navy rounded-lg text-xs font-bold transition border border-slate-200"
+                          title="Baixar via original em branco (PDF DIA)"
+                        >
+                          <FileText className="w-3.5 h-3.5 text-slate-500" />
+                          Original
+                        </a>
+
+                        {/* Se já foi anexado o documento assinado */}
+                        {mov.arquivo_termo_assinado ? (
+                          <div className="flex items-center gap-1">
+                            <a
+                              href={api.getTermoAssinadoUrl(mov.id)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold transition shadow-sm"
+                              title="Visualizar documento assinado anexado"
+                            >
+                              <FileCheck className="w-3.5 h-3.5 text-amber-300" />
+                              Ver Assinado
+                            </a>
+
+                            <label
+                              className="cursor-pointer p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg transition border border-slate-200"
+                              title="Substituir arquivo assinado"
+                            >
+                              <Upload className="w-3.5 h-3.5" />
+                              <input
+                                type="file"
+                                className="hidden"
+                                accept=".pdf,.png,.jpg,.jpeg"
+                                disabled={uploadingId === mov.id}
+                                onChange={(e) => handleFileUpload(mov.id, e)}
+                              />
+                            </label>
+
+                            <button
+                              onClick={() => setTermoToDeleteId(mov.id)}
+                              className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg transition border border-rose-200"
+                              title="Remover arquivo assinado"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ) : (
+                          /* Se ainda não foi anexado */
+                          <label
+                            className={`cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition shadow-sm ${
+                              uploadingId === mov.id
+                                ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                                : 'bg-dia-navy hover:bg-dia-navy-dark text-white'
+                            }`}
+                            title="Anexar documento assinado (PDF, JPG ou PNG)"
+                          >
+                            <Upload className="w-3.5 h-3.5 text-amber-400" />
+                            <span>{uploadingId === mov.id ? 'Enviando...' : 'Anexar Assinado'}</span>
+                            <input
+                              type="file"
+                              className="hidden"
+                              accept=".pdf,.png,.jpg,.jpeg"
+                              disabled={uploadingId === mov.id}
+                              onChange={(e) => handleFileUpload(mov.id, e)}
+                            />
+                          </label>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -373,7 +492,7 @@ export const MovimentacoesView: React.FC<MovimentacoesViewProps> = ({
                   <label className="block text-xs font-bold text-slate-700 mb-1">TI</label>
                   <input
                     type="text"
-                    placeholder="Ex: Leidiane Silva"
+                    placeholder="TI"
                     value={nomeResponsavelTi}
                     onChange={(e) => setNomeResponsavelTi(e.target.value)}
                     className="w-full bg-slate-50 text-slate-900 text-sm p-2.5 rounded-xl border border-slate-200"
@@ -482,6 +601,20 @@ export const MovimentacoesView: React.FC<MovimentacoesViewProps> = ({
           </div>
         </div>
       )}
+
+      {/* Modal de Confirmação para Remover Termo Assinado */}
+      <ConfirmModal
+        isOpen={!!termoToDeleteId}
+        onClose={() => setTermoToDeleteId(null)}
+        onConfirm={confirmDeleteAssinado}
+        isLoading={isDeletingTermo}
+        title="Remover Termo Assinado"
+        description="Confirmação de exclusão do documento anexado"
+        warningNote="O arquivo digitalizado será removido do sistema e o status desta movimentação retornará para 'Pendente de Assinatura'."
+        confirmText="Sim, Remover Termo"
+        cancelText="Cancelar"
+        isDanger={true}
+      />
     </div>
   );
 };
