@@ -1,7 +1,11 @@
 import axios from 'axios';
 import type { DashboardStats, Equipamento, Funcionario, Movimentacao, StatusEquipamento, Usuario, PerfilUsuario } from './types';
 
-const API_BASE = `http://${window.location.hostname}:8000/api`;
+// URL da API configurada via .env (VITE_API_URL) ou dinâmica baseada no hostname atual
+const ENV_API_URL = import.meta.env.VITE_API_URL;
+const API_BASE = ENV_API_URL
+  ? (ENV_API_URL.endsWith('/') ? ENV_API_URL.slice(0, -1) : ENV_API_URL)
+  : `http://${window.location.hostname}:8000/api`;
 
 export const api = {
   // Auth & Usuarios

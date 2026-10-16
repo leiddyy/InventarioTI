@@ -92,22 +92,58 @@ O frontend estará rodando na porta padrão (geralmente `3000` ou `5173`) e esta
 ```text
 InventarioTI/
 ├── backend/
+│   ├── .env                  # Configurações do backend (Porta, Host, DATABASE_URL)
+│   ├── .env.example          # Modelo de configuração do backend
 │   ├── main.py               # Rotas e configuração principal do FastAPI
+│   ├── database.py           # Conexão híbrida (SQLite / PostgreSQL)
 │   ├── models.py             # Modelos de banco de dados (Equipamento, Funcionario, etc.)
-│   ├── pdf_generator.py      # Lógica de geração do Termo de Responsabilidade em PDF
-│   ├── report_generator.py   # Lógica de geração de relatórios do inventário (Excel/PDF)
-│   ├── database.db           # Banco de dados SQLite
+│   ├── migrate_sqlite_to_pg.py # Script para migrar dados de SQLite para PostgreSQL
+│   ├── pdf_generator.py      # Geração do Termo de Responsabilidade em PDF
+│   ├── report_generator.py   # Lógica de relatórios do inventário (Excel/PDF)
+│   ├── inventario_ti.db      # Banco de dados local SQLite
+│   ├── uploads/termos/       # Armazenamento de termos assinados (PDF/Fotos)
 │   └── requirements.txt      # Dependências do Python
-└── frontend/
-    ├── src/
-    │   ├── api.ts            # Configuração do Axios e chamadas de API (com IP dinâmico)
-    │   ├── App.tsx           # Componente raiz, rotas e controle de sessão
-    │   ├── types.ts          # Definições de tipos do TypeScript
-    │   └── components/       # Componentes de tela (EquipamentosView, FuncionariosView, etc.)
-    ├── public/               # Ativos estáticos (Logo da empresa, favicon)
-    ├── vite.config.ts        # Configuração do Vite (inclui host: '0.0.0.0')
-    └── package.json          # Dependências do Node.js
+├── frontend/
+│   ├── .env                  # Configurações do frontend (VITE_API_URL)
+│   ├── .env.example          # Modelo de configuração do frontend
+│   ├── src/
+│   │   ├── api.ts            # Cliente Axios com suporte a .env e IP dinâmico
+│   │   ├── App.tsx           # Componente raiz, rotas e controle de sessão
+│   │   ├── types.ts          # Definições de tipos do TypeScript
+│   │   └── components/       # Componentes de tela
+│   ├── vite.config.ts        # Configuração do Vite
+│   └── package.json          # Dependências do Node.js
+└── deploy/
+    ├── inventario-backend.service # Serviço Systemd para rodar o backend na VM
+    ├── nginx.conf                 # Proxy reverso Nginx para porta 80
+    └── setup_vm.sh                # Script automatizado de instalação na VM
 ```
+
+## 🌐 Deploy em Máquina Virtual (VM via SSH)
+
+O sistema foi preparado para rodar em produção na VM (Ubuntu/Debian) com alta disponibilidade:
+
+1. **Copiar o projeto para a VM**:
+   ```bash
+   scp -r InventarioTI usuario@ip_da_vm:/var/www/inventario-ti
+   ```
+
+2. **Escolher o Banco de Dados no `backend/.env`**:
+   - **SQLite**: Mantenha `DATABASE_URL=sqlite:///./inventario_ti.db` (pronto imediatamente).
+   - **PostgreSQL**: Instale o Postgres e aponte no `.env`:
+     `DATABASE_URL=postgresql://inventario_user:senha@localhost:5432/inventario_ti`
+   - *(Opcional)* Se quiser migrar os dados existentes do SQLite para o PostgreSQL:
+     ```bash
+     python backend/migrate_sqlite_to_pg.py postgresql://inventario_user:senha@localhost:5432/inventario_ti
+     ```
+
+3. **Executar o instalador automático**:
+   ```bash
+   cd /var/www/inventario-ti
+   chmod +x deploy/setup_vm.sh
+   ./deploy/setup_vm.sh
+   ```
+   O script instalará dependências, compilará o frontend, configurará o Nginx na porta 80 e inicializará o serviço do backend pelo Systemd.
 
 ## 👨‍💻 Créditos
 Desenvolvido por Leidiane Silva.

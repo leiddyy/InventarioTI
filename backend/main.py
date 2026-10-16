@@ -2,7 +2,7 @@ from fastapi import FastAPI, Depends, HTTPException, Response, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, FileResponse
 from sqlalchemy.orm import Session
-from sqlalchemy import text
+from sqlalchemy import text, inspect
 from typing import List, Optional
 from datetime import datetime
 import os
@@ -17,24 +17,29 @@ from report_generator import gerar_excel_inventario, gerar_pdf_inventario
 
 Base.metadata.create_all(bind=engine)
 
-# Migração segura para adicionar coluna arquivo_termo_assinado se não existir
+# Migração segura para adicionar coluna arquivo_termo_assinado se não existir (compatível com SQLite e PostgreSQL)
 try:
-    with engine.connect() as conn:
-        cols = [col[1] for col in conn.execute(text("PRAGMA table_info(movimentacoes)")).fetchall()]
+    inspector = inspect(engine)
+    if "movimentacoes" in inspector.get_table_names():
+        cols = [col["name"] for col in inspector.get_columns("movimentacoes")]
         if "arquivo_termo_assinado" not in cols:
-            conn.execute(text("ALTER TABLE movimentacoes ADD COLUMN arquivo_termo_assinado VARCHAR;"))
-            conn.commit()
+            with engine.connect() as conn:
+                conn.execute(text("ALTER TABLE movimentacoes ADD COLUMN arquivo_termo_assinado VARCHAR;"))
+                conn.commit()
 except Exception as e:
     print(f"Aviso de migração: {e}")
 
-UPLOAD_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "uploads", "termos")
+UPLOAD_DIR = os.getenv("UPLOAD_DIR", os.path.join(os.path.dirname(os.path.abspath(__file__)), "uploads", "termos"))
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-app = FastAPI(title="Sistema de Inventário de TI - DIA Distribuição", version="2.7.0")
+cors_origins_env = os.getenv("CORS_ORIGINS", "*")
+origins = [o.strip() for o in cors_origins_env.split(",") if o.strip()] if cors_origins_env != "*" else ["*"]
+
+app = FastAPI(title="Sistema de Inventário de TI - DIA Distribuição", version="2.8.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -417,4 +422,10 @@ def delete_termo_assinado(id: int, db: Session = Depends(get_db)):
         db.commit()
 
     return {"message": "Termo assinado removido com sucesso."}
+
+if __name__ == "__main__":
+    import uvicorn
+    host = os.getenv("HOST", "0.0.0.0")
+    port = int(os.getenv("PORT", "8000"))
+    uvicorn.run("main:app", host=host, port=port, reload=True)
 
