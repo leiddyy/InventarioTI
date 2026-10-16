@@ -30,6 +30,10 @@ export const api = {
     await axios.delete(`${API_BASE}/usuarios/${id}`);
   },
 
+  updateSenhaUsuario: async (id: number, novaSenha: string): Promise<void> => {
+    await axios.put(`${API_BASE}/usuarios/${id}/senha`, { nova_senha: novaSenha });
+  },
+
   // Stats
   getStats: async (): Promise<DashboardStats> => {
     const res = await axios.get(`${API_BASE}/dashboard/stats`);

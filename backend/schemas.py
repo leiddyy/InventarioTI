@@ -17,6 +17,9 @@ class UsuarioBase(BaseModel):
 class UsuarioCreate(UsuarioBase):
     senha: str
 
+class UsuarioUpdateSenha(BaseModel):
+    nova_senha: str
+
 class UsuarioResponse(UsuarioBase):
     id: int
     created_at: datetime

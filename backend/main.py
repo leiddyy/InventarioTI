@@ -103,6 +103,19 @@ def delete_usuario(id: int, db: Session = Depends(get_db)):
     db.commit()
     return {"message": "Usuário excluído com sucesso."}
 
+@app.put("/api/usuarios/{id}/senha")
+def update_senha_usuario(id: int, dados: schemas.UsuarioUpdateSenha, db: Session = Depends(get_db)):
+    user = db.query(models.Usuario).filter(models.Usuario.id == id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado.")
+
+    if not dados.nova_senha or len(dados.nova_senha.strip()) < 3:
+        raise HTTPException(status_code=400, detail="A nova senha deve ter no mínimo 3 caracteres.")
+
+    user.senha = dados.nova_senha.strip()
+    db.commit()
+    return {"message": f"Senha do usuário {user.nome} atualizada com sucesso."}
+
 # --- DASHBOARD ---
 @app.get("/api/dashboard/stats", response_model=schemas.DashboardStats)
 def get_dashboard_stats(db: Session = Depends(get_db)):

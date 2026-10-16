@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { Usuario, PerfilUsuario } from '../types';
-import { UserPlus, Shield, Trash2, X, Search, Lock, User } from 'lucide-react';
+import { UserPlus, Shield, Trash2, X, Search, Lock, User, KeyRound, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
 import { api } from '../api';
 
 interface UsuariosViewProps {
@@ -13,6 +13,48 @@ export const UsuariosView: React.FC<UsuariosViewProps> = ({ usuarios, currentUse
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<Usuario | null>(null);
+
+  // Alterar Senha state
+  const [userToChangePassword, setUserToChangePassword] = useState<Usuario | null>(null);
+  const [novaSenha, setNovaSenha] = useState('');
+  const [confirmarNovaSenha, setConfirmarNovaSenha] = useState('');
+  const [mostrarSenha, setMostrarSenha] = useState(false);
+  const [senhaLoading, setSenhaLoading] = useState(false);
+  const [senhaError, setSenhaError] = useState<string | null>(null);
+  const [senhaSuccess, setSenhaSuccess] = useState<string | null>(null);
+
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!userToChangePassword) return;
+
+    if (novaSenha.length < 3) {
+      setSenhaError('A nova senha deve ter no mínimo 3 caracteres.');
+      return;
+    }
+
+    if (novaSenha !== confirmarNovaSenha) {
+      setSenhaError('As senhas digitadas não coincidem. Verifique e tente novamente.');
+      return;
+    }
+
+    try {
+      setSenhaLoading(true);
+      setSenhaError(null);
+      await api.updateSenhaUsuario(userToChangePassword.id, novaSenha);
+      setSenhaSuccess('Senha alterada com sucesso!');
+      setTimeout(() => {
+        setUserToChangePassword(null);
+        setNovaSenha('');
+        setConfirmarNovaSenha('');
+        setSenhaSuccess(null);
+        onRefresh();
+      }, 1200);
+    } catch (err: any) {
+      setSenhaError(err.response?.data?.detail || 'Erro ao alterar senha do usuário.');
+    } finally {
+      setSenhaLoading(false);
+    }
+  };
 
   const [formData, setFormData] = useState({
     nome: '',
@@ -153,14 +195,29 @@ export const UsuariosView: React.FC<UsuariosViewProps> = ({ usuarios, currentUse
                       </span>
                     </td>
                     <td className="py-3.5 px-4 text-right">
-                      <button
-                        onClick={() => setUserToDelete(u)}
-                        disabled={currentUser?.id === u.id}
-                        className="p-1.5 bg-slate-100 hover:bg-rose-100 text-slate-500 hover:text-rose-700 disabled:opacity-30 rounded-lg transition border border-slate-200"
-                        title={currentUser?.id === u.id ? 'Você não pode excluir sua própria conta' : 'Excluir Usuário'}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          onClick={() => {
+                            setUserToChangePassword(u);
+                            setNovaSenha('');
+                            setConfirmarNovaSenha('');
+                            setSenhaError(null);
+                            setSenhaSuccess(null);
+                          }}
+                          className="p-1.5 bg-slate-100 hover:bg-amber-100 text-slate-600 hover:text-amber-800 rounded-lg transition border border-slate-200"
+                          title="Alterar Senha de Acesso"
+                        >
+                          <KeyRound className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => setUserToDelete(u)}
+                          disabled={currentUser?.id === u.id}
+                          className="p-1.5 bg-slate-100 hover:bg-rose-100 text-slate-500 hover:text-rose-700 disabled:opacity-30 rounded-lg transition border border-slate-200"
+                          title={currentUser?.id === u.id ? 'Você não pode excluir sua própria conta' : 'Excluir Usuário'}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -303,6 +360,119 @@ export const UsuariosView: React.FC<UsuariosViewProps> = ({ usuarios, currentUse
                 Excluir Usuário
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Alterar Senha */}
+      {userToChangePassword && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-md p-6 space-y-4">
+            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+                  <KeyRound className="w-5 h-5 stroke-[2.2]" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-dia-navy">Alterar Senha de Acesso</h3>
+                  <p className="text-xs text-slate-500 font-medium">Defina uma nova senha para este usuário</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setUserToChangePassword(null)}
+                className="text-slate-400 hover:text-slate-700 p-1 rounded-xl transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Info do Usuário */}
+            <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-2xl flex items-center justify-between">
+              <div>
+                <p className="text-xs font-extrabold text-slate-900">{userToChangePassword.nome}</p>
+                <p className="text-[11px] font-mono text-slate-500 font-medium">
+                  Usuário: <span className="font-bold text-dia-navy">{userToChangePassword.email.split('@')[0]}</span>
+                </p>
+              </div>
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                userToChangePassword.perfil === 'ADMIN'
+                  ? 'bg-blue-100 text-blue-900 border border-blue-200'
+                  : 'bg-amber-100 text-amber-900 border border-amber-200'
+              }`}>
+                {userToChangePassword.perfil === 'ADMIN' ? 'Administrador' : 'RH'}
+              </span>
+            </div>
+
+            {senhaError && (
+              <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 font-bold">
+                {senhaError}
+              </div>
+            )}
+
+            {senhaSuccess && (
+              <div className="p-3 bg-emerald-50 border border-emerald-300 rounded-xl text-xs text-emerald-800 font-bold flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>{senhaSuccess}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleUpdatePassword} className="space-y-3.5">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Nova Senha *</label>
+                <div className="relative">
+                  <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+                  <input
+                    type={mostrarSenha ? 'text' : 'password'}
+                    required
+                    placeholder="Mínimo 3 caracteres"
+                    value={novaSenha}
+                    onChange={(e) => setNovaSenha(e.target.value)}
+                    className="w-full bg-slate-50 text-slate-900 text-sm pl-10 pr-10 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-dia-navy focus:bg-white transition"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setMostrarSenha(!mostrarSenha)}
+                    className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 transition"
+                  >
+                    {mostrarSenha ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Confirmar Nova Senha *</label>
+                <div className="relative">
+                  <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+                  <input
+                    type={mostrarSenha ? 'text' : 'password'}
+                    required
+                    placeholder="Repita a nova senha"
+                    value={confirmarNovaSenha}
+                    onChange={(e) => setConfirmarNovaSenha(e.target.value)}
+                    className="w-full bg-slate-50 text-slate-900 text-sm pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-dia-navy focus:bg-white transition"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setUserToChangePassword(null)}
+                  disabled={senhaLoading}
+                  className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={senhaLoading}
+                  className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-slate-950 rounded-xl text-xs font-extrabold shadow-md transition flex items-center gap-1.5"
+                >
+                  <KeyRound className="w-3.5 h-3.5" />
+                  <span>{senhaLoading ? 'Salvando...' : 'Salvar Nova Senha'}</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
