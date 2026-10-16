@@ -114,36 +114,71 @@ InventarioTI/
 │   ├── vite.config.ts        # Configuração do Vite
 │   └── package.json          # Dependências do Node.js
 └── deploy/
-    ├── inventario-backend.service # Serviço Systemd para rodar o backend na VM
-    ├── nginx.conf                 # Proxy reverso Nginx para porta 80
-    └── setup_vm.sh                # Script automatizado de instalação na VM
+    ├── windows/                   # Scripts para VM Windows Server / Windows 10/11
+    │   ├── setup_vm_windows.ps1   # Instala dependências, faz build e abre firewall
+    │   ├── liberar_firewall.ps1   # Libera portas 8000, 3000 e 80 no Firewall do Windows
+    │   ├── iniciar_background.ps1 # Inicia backend e frontend em segundo plano (via SSH)
+    │   ├── parar_sistema.ps1      # Interrompe os processos do sistema
+    │   ├── iniciar_sistema.bat    # Iniciar dando dois cliques (com janela visível)
+    │   └── configurar_inicializacao_automatica.ps1 # Inicia no boot do Windows (sem login)
+    ├── inventario-backend.service # (Para Linux) Serviço Systemd
+    ├── nginx.conf                 # (Para Linux) Proxy reverso Nginx
+    └── setup_vm.sh                # (Para Linux) Script de deploy Ubuntu/Debian
 ```
 
-## 🌐 Deploy em Máquina Virtual (VM via SSH)
+## 🪟 Deploy em Máquina Virtual WINDOWS (via SSH ou RDP)
 
-O sistema foi preparado para rodar em produção na VM (Ubuntu/Debian) com alta disponibilidade:
+Se a sua VM for **Windows Server** ou **Windows 10/11**:
 
-1. **Copiar o projeto para a VM**:
-   ```bash
-   scp -r InventarioTI usuario@ip_da_vm:/var/www/inventario-ti
-   ```
+### 1. Questão do Banco de Dados na VM Windows
+- **Opção Recomendada (Mais Prática e Imediata): SQLite**
+  - O SQLite **já está pronto e não precisa instalar nenhum programa de banco**.
+  - O banco de dados é um arquivo único (`backend/inventario_ti.db`), o que facilita backups (basta copiar o arquivo).
+  - Configuração no `backend/.env`: `DATABASE_URL=sqlite:///./inventario_ti.db`.
+- **Opção PostgreSQL (Opcional)**:
+  - Se a empresa exigir PostgreSQL, baixe e instale o instalador do PostgreSQL para Windows e aponte no `.env`:
+    `DATABASE_URL=postgresql://usuario:senha@localhost:5432/inventario_ti`
 
-2. **Escolher o Banco de Dados no `backend/.env`**:
-   - **SQLite**: Mantenha `DATABASE_URL=sqlite:///./inventario_ti.db` (pronto imediatamente).
-   - **PostgreSQL**: Instale o Postgres e aponte no `.env`:
-     `DATABASE_URL=postgresql://inventario_user:senha@localhost:5432/inventario_ti`
-   - *(Opcional)* Se quiser migrar os dados existentes do SQLite para o PostgreSQL:
-     ```bash
-     python backend/migrate_sqlite_to_pg.py postgresql://inventario_user:senha@localhost:5432/inventario_ti
-     ```
+### 2. Copiar os arquivos para a VM Windows via SSH:
+No terminal da sua máquina:
+```powershell
+scp -r C:\Users\leidiane.silva\Documents\InventarioTI usuario@ip_da_vm:C:\InventarioTI
+```
 
-3. **Executar o instalador automático**:
-   ```bash
-   cd /var/www/inventario-ti
-   chmod +x deploy/setup_vm.sh
-   ./deploy/setup_vm.sh
-   ```
-   O script instalará dependências, compilará o frontend, configurará o Nginx na porta 80 e inicializará o serviço do backend pelo Systemd.
+### 3. Conectar e Configurar a VM Windows:
+Acesse a VM via SSH:
+```powershell
+ssh usuario@ip_da_vm
+```
+No PowerShell da VM, entre na pasta e execute o script de instalação (como Administrador):
+```powershell
+cd C:\InventarioTI
+powershell -ExecutionPolicy Bypass -File .\deploy\windows\setup_vm_windows.ps1
+```
+*(O script instalará dependências, criará o ambiente Python, compilará o React e liberará as portas 8000 e 3000 no Firewall do Windows).*
+
+### 4. Manter o Sistema Rodando 24/7 na VM Windows:
+Para que o sistema **inicie automaticamente sempre que a VM Windows ligar ou reiniciar** (sem precisar de ninguém logado):
+```powershell
+powershell -ExecutionPolicy Bypass -File .\deploy\windows\configurar_inicializacao_automatica.ps1
+```
+
+- Para **iniciar imediatamente em segundo plano**:
+  ```powershell
+  powershell -ExecutionPolicy Bypass -File .\deploy\windows\iniciar_background.ps1
+  ```
+- Para **parar os processos**:
+  ```powershell
+  powershell -ExecutionPolicy Bypass -File .\deploy\windows\parar_sistema.ps1
+  ```
+
+---
+
+## 🐧 Deploy em Máquina Virtual LINUX (Ubuntu/Debian)
+
+Se a sua VM for Linux:
+1. Copie para `/var/www/inventario-ti`: `scp -r InventarioTI usuario@ip_da_vm:/var/www/inventario-ti`
+2. Execute o script: `cd /var/www/inventario-ti && chmod +x deploy/setup_vm.sh && ./deploy/setup_vm.sh`
 
 ## 👨‍💻 Créditos
 Desenvolvido por Leidiane Silva.
