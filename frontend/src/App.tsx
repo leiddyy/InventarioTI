@@ -8,7 +8,7 @@ import { FuncionariosView } from './components/FuncionariosView';
 import { MovimentacoesView } from './components/MovimentacoesView';
 import { UsuariosView } from './components/UsuariosView';
 import { LoginView } from './components/LoginView';
-import { ShieldCheck, Code2 } from 'lucide-react';
+import { ShieldCheck, Code2, AlertTriangle } from 'lucide-react';
 
 export function App() {
   const [usuario, setUsuario] = useState<Usuario | null>(() => {
@@ -35,6 +35,7 @@ export function App() {
   const [movimentacoes, setMovimentacoes] = useState<Movimentacao[]>([]);
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const handleLoginSuccess = (user: Usuario, authToken: string) => {
     setUsuario(user);
@@ -60,6 +61,7 @@ export function App() {
     if (!token) return;
     try {
       setLoading(true);
+      setLoadError(null);
       const [s, e, f, m, u] = await Promise.all([
         api.getStats(),
         api.getEquipamentos(),
@@ -72,8 +74,9 @@ export function App() {
       setFuncionarios(f);
       setMovimentacoes(m);
       setUsuarios(u);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Erro ao carregar dados do inventário:', err);
+      setLoadError('O servidor backend (FastAPI na porta 8000) não está respondendo ou não conseguiu se conectar ao banco de dados.');
     } finally {
       setLoading(false);
     }
@@ -100,7 +103,21 @@ export function App() {
       />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-        {loading && !stats ? (
+        {loadError && !stats ? (
+          <div className="flex flex-col items-center justify-center p-8 bg-white rounded-2xl shadow-sm border border-red-200 text-center max-w-lg mx-auto mt-12">
+            <div className="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mb-3">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+            <h3 className="text-base font-bold text-slate-800">Servidor Backend Inacessível</h3>
+            <p className="text-xs text-slate-500 mt-2 leading-relaxed">{loadError}</p>
+            <button
+              onClick={loadData}
+              className="mt-5 px-5 py-2.5 bg-dia-navy hover:bg-slate-800 text-white text-xs font-bold rounded-xl shadow transition cursor-pointer"
+            >
+              Tentar Novamente
+            </button>
+          </div>
+        ) : loading && !stats ? (
           <div className="flex items-center justify-center h-64 text-slate-500 font-medium">
             Carregando módulo do sistema...
           </div>

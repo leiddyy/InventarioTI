@@ -15,10 +15,9 @@ import schemas
 from pdf_generator import gerar_pdf_termo_responsabilidade
 from report_generator import gerar_excel_inventario, gerar_pdf_inventario
 
-Base.metadata.create_all(bind=engine)
-
-# Migração segura para adicionar coluna arquivo_termo_assinado se não existir (compatível com SQLite e PostgreSQL)
+# Inicialização segura do banco de dados
 try:
+    Base.metadata.create_all(bind=engine)
     inspector = inspect(engine)
     if "movimentacoes" in inspector.get_table_names():
         cols = [col["name"] for col in inspector.get_columns("movimentacoes")]
@@ -27,7 +26,7 @@ try:
                 conn.execute(text("ALTER TABLE movimentacoes ADD COLUMN arquivo_termo_assinado VARCHAR;"))
                 conn.commit()
 except Exception as e:
-    print(f"Aviso de migração: {e}")
+    print(f"AVISO: Falha ao inicializar tabelas no banco de dados: {e}")
 
 UPLOAD_DIR = os.getenv("UPLOAD_DIR", os.path.join(os.path.dirname(os.path.abspath(__file__)), "uploads", "termos"))
 os.makedirs(UPLOAD_DIR, exist_ok=True)
