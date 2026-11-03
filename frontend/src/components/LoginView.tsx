@@ -22,7 +22,13 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
       const res = await api.login(email, senha);
       onLoginSuccess(res.usuario, res.token);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Erro ao realizar login. Verifique os dados.');
+      if (!err.response) {
+        setError('Não foi possível conectar ao servidor backend (porta 8000). Verifique se o backend está iniciado na VM.');
+      } else if (err.response.status === 401) {
+        setError(err.response.data?.detail || 'Usuário ou senha incorretos.');
+      } else {
+        setError(err.response.data?.detail || 'Erro ao realizar login. Tente novamente.');
+      }
     } finally {
       setLoading(false);
     }

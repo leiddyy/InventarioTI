@@ -32,9 +32,25 @@ $FrontendDir = "$RootDir\frontend"
 Write-Host "`n=== [2/4] Configurando Backend Python ===" -ForegroundColor Cyan
 Set-Location $BackendDir
 
+$pyVenvCfg = "$BackendDir\venv\pyvenv.cfg"
+$needNewVenv = $false
+
 if (-not (Test-Path "$BackendDir\venv")) {
-    Write-Host "Criando ambiente virtual (venv)..."
-    python -m venv venv
+    $needNewVenv = $true
+} else {
+    # Testa se o python da venv funciona
+    try {
+        & "$BackendDir\venv\Scripts\python.exe" -c "exit()" 2>$null
+        if ($LASTEXITCODE -ne 0) { $needNewVenv = $true }
+    } catch {
+        $needNewVenv = $true
+    }
+}
+
+if ($needNewVenv) {
+    Write-Host "Detectado venv copiado de outro computador ou invalido. Recriando venv na VM..." -ForegroundColor Yellow
+    Remove-Item -Recurse -Force "$BackendDir\venv" -ErrorAction SilentlyContinue
+    python -m venv "$BackendDir\venv"
 }
 
 Write-Host "Instalando dependencias do backend..."

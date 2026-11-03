@@ -92,15 +92,15 @@ O frontend estará rodando na porta padrão (geralmente `3000` ou `5173`) e esta
 ```text
 InventarioTI/
 ├── backend/
-│   ├── .env                  # Configurações do backend (Porta, Host, DATABASE_URL)
+│   ├── .env                  # Configurações do backend (DATABASE_URL Supabase/SQLite)
 │   ├── .env.example          # Modelo de configuração do backend
 │   ├── main.py               # Rotas e configuração principal do FastAPI
-│   ├── database.py           # Conexão híbrida (SQLite / PostgreSQL)
+│   ├── database.py           # Conexão híbrida (SQLite local / Supabase PostgreSQL)
 │   ├── models.py             # Modelos de banco de dados (Equipamento, Funcionario, etc.)
-│   ├── migrate_sqlite_to_pg.py # Script para migrar dados de SQLite para PostgreSQL
+│   ├── migrate_to_supabase.py # Script para migrar dados do SQLite para o Supabase
 │   ├── pdf_generator.py      # Geração do Termo de Responsabilidade em PDF
 │   ├── report_generator.py   # Lógica de relatórios do inventário (Excel/PDF)
-│   ├── inventario_ti.db      # Banco de dados local SQLite
+│   ├── inventario_ti.db      # Banco de dados local SQLite (desenvolvimento offline)
 │   ├── uploads/termos/       # Armazenamento de termos assinados (PDF/Fotos)
 │   └── requirements.txt      # Dependências do Python
 ├── frontend/
@@ -114,71 +114,52 @@ InventarioTI/
 │   ├── vite.config.ts        # Configuração do Vite
 │   └── package.json          # Dependências do Node.js
 └── deploy/
-    ├── windows/                   # Scripts para VM Windows Server / Windows 10/11
-    │   ├── setup_vm_windows.ps1   # Instala dependências, faz build e abre firewall
-    │   ├── liberar_firewall.ps1   # Libera portas 8000, 3000 e 80 no Firewall do Windows
-    │   ├── iniciar_background.ps1 # Inicia backend e frontend em segundo plano (via SSH)
-    │   ├── parar_sistema.ps1      # Interrompe os processos do sistema
-    │   ├── iniciar_sistema.bat    # Iniciar dando dois cliques (com janela visível)
-    │   └── configurar_inicializacao_automatica.ps1 # Inicia no boot do Windows (sem login)
-    ├── inventario-backend.service # (Para Linux) Serviço Systemd
-    ├── nginx.conf                 # (Para Linux) Proxy reverso Nginx
-    └── setup_vm.sh                # (Para Linux) Script de deploy Ubuntu/Debian
+    └── windows/                   # Scripts para VM Windows Server / Windows 10/11
+        ├── setup_vm_windows.ps1   # Instala dependências, faz build e abre firewall
+        ├── liberar_firewall.ps1   # Libera portas 8000 e 3000 no Firewall do Windows
+        ├── iniciar_background.ps1 # Inicia backend e frontend em segundo plano (via SSH)
+        ├── parar_sistema.ps1      # Interrompe os processos do sistema
+        ├── iniciar_sistema.bat    # Iniciar dando dois cliques (com janela visível)
+        └── configurar_inicializacao_automatica.ps1 # Inicia no boot do Windows (sem login)
 ```
 
-## 🪟 Deploy em Máquina Virtual WINDOWS (via SSH ou RDP)
+## ⚡ Banco de Dados em Nuvem: Supabase
 
-Se a sua VM for **Windows Server** ou **Windows 10/11**:
+Para não precisar gerenciar, instalar ou manter serviços de banco de dados locais na VM, o sistema utiliza o **Supabase** (PostgreSQL na nuvem):
 
-### 1. Questão do Banco de Dados na VM Windows
-- **Opção Recomendada (Mais Prática e Imediata): SQLite**
-  - O SQLite **já está pronto e não precisa instalar nenhum programa de banco**.
-  - O banco de dados é um arquivo único (`backend/inventario_ti.db`), o que facilita backups (basta copiar o arquivo).
-  - Configuração no `backend/.env`: `DATABASE_URL=sqlite:///./inventario_ti.db`.
-- **Opção PostgreSQL (Opcional)**:
-  - Se a empresa exigir PostgreSQL, baixe e instale o instalador do PostgreSQL para Windows e aponte no `.env`:
-    `DATABASE_URL=postgresql://usuario:senha@localhost:5432/inventario_ti`
-
-### 2. Copiar os arquivos para a VM Windows via SSH:
-No terminal da sua máquina:
-```powershell
-scp -r C:\Users\leidiane.silva\Documents\InventarioTI usuario@ip_da_vm:C:\InventarioTI
-```
-
-### 3. Conectar e Configurar a VM Windows:
-Acesse a VM via SSH:
-```powershell
-ssh usuario@ip_da_vm
-```
-No PowerShell da VM, entre na pasta e execute o script de instalação (como Administrador):
-```powershell
-cd C:\InventarioTI
-powershell -ExecutionPolicy Bypass -File .\deploy\windows\setup_vm_windows.ps1
-```
-*(O script instalará dependências, criará o ambiente Python, compilará o React e liberará as portas 8000 e 3000 no Firewall do Windows).*
-
-### 4. Manter o Sistema Rodando 24/7 na VM Windows:
-Para que o sistema **inicie automaticamente sempre que a VM Windows ligar ou reiniciar** (sem precisar de ninguém logado):
-```powershell
-powershell -ExecutionPolicy Bypass -File .\deploy\windows\configurar_inicializacao_automatica.ps1
-```
-
-- Para **iniciar imediatamente em segundo plano**:
-  ```powershell
-  powershell -ExecutionPolicy Bypass -File .\deploy\windows\iniciar_background.ps1
-  ```
-- Para **parar os processos**:
-  ```powershell
-  powershell -ExecutionPolicy Bypass -File .\deploy\windows\parar_sistema.ps1
-  ```
+1. **Obter a URL de Conexão no Supabase**:
+   No painel do Supabase, acesse:
+   `Project Settings` > `Database` > `Connection String` > `URI` (ou `Transaction Pooler`).
+2. **Configurar no `backend/.env`**:
+   ```ini
+   DATABASE_URL=postgresql://postgres.[PROJECT-REF]:[SUA-SENHA]@aws-0-sa-east-1.pooler.supabase.com:6543/postgres
+   ```
+3. **(Opcional) Migrar seus dados locais para o Supabase**:
+   Para enviar todos os usuários, colaboradores e equipamentos existentes para o Supabase com 1 comando:
+   ```bash
+   python backend/migrate_to_supabase.py
+   ```
 
 ---
 
-## 🐧 Deploy em Máquina Virtual LINUX (Ubuntu/Debian)
+## 🪟 Execução na VM Windows (via SSH ou RDP)
 
-Se a sua VM for Linux:
-1. Copie para `/var/www/inventario-ti`: `scp -r InventarioTI usuario@ip_da_vm:/var/www/inventario-ti`
-2. Execute o script: `cd /var/www/inventario-ti && chmod +x deploy/setup_vm.sh && ./deploy/setup_vm.sh`
+1. **Copiar os arquivos para a VM**:
+   ```powershell
+   scp -r C:\Users\leidiane.silva\Documents\InventarioTI usuario@ip_da_vm:C:\InventarioTI
+   ```
+   *(Lembre-se de não copiar a pasta `venv` para a VM).*
+
+2. **Configurar e Iniciar na VM**:
+   ```powershell
+   cd C:\InventarioTI
+   powershell -ExecutionPolicy Bypass -File .\deploy\windows\setup_vm_windows.ps1
+   ```
+
+3. **Iniciar 24/7 com o boot do Windows**:
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File .\deploy\windows\configurar_inicializacao_automatica.ps1
+   ```
 
 ## 👨‍💻 Créditos
 Desenvolvido por Leidiane Silva.

@@ -42,6 +42,13 @@ class FuncionarioBase(BaseModel):
 class FuncionarioCreate(FuncionarioBase):
     pass
 
+class FuncionarioUpdate(BaseModel):
+    nome: Optional[str] = None
+    email: Optional[str] = None
+    cpf: Optional[str] = None
+    cargo: Optional[str] = None
+    departamento: Optional[str] = None
+
 class FuncionarioResponse(FuncionarioBase):
     id: int
     created_at: datetime

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { Usuario, PerfilUsuario } from '../types';
-import { UserPlus, Shield, Trash2, X, Search, Lock, User, KeyRound, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
+import { UserPlus, Shield, Trash2, X, Search, Lock, User, KeyRound, Eye, EyeOff, CheckCircle2, Users, ShieldCheck } from 'lucide-react';
 import { api } from '../api';
 
 interface UsuariosViewProps {
@@ -283,30 +283,68 @@ export const UsuariosView: React.FC<UsuariosViewProps> = ({ usuarios, currentUse
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Perfil de Acesso *</label>
-                  <select
-                    value={formData.perfil}
-                    onChange={(e) => setFormData({ ...formData, perfil: e.target.value as PerfilUsuario })}
-                    className="w-full bg-slate-50 text-slate-900 text-sm p-2.5 rounded-xl border border-slate-200 font-bold"
+              {/* Perfil de Acesso */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">Perfil de Acesso ao Sistema *</label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, perfil: 'RH' })}
+                    className={`p-3 rounded-2xl border text-left transition flex items-start gap-3 ${
+                      formData.perfil === 'RH'
+                        ? 'bg-amber-50/70 border-amber-400 ring-2 ring-amber-400/20 shadow-sm'
+                        : 'bg-slate-50 border-slate-200 hover:border-slate-300 hover:bg-white text-slate-600'
+                    }`}
                   >
-                    <option value="RH">👥 Setor RH (Colaboradores & Termos)</option>
-                    <option value="ADMIN">⚡ Administrador (Acesso Total TI)</option>
-                  </select>
-                </div>
+                    <div className={`p-2 rounded-xl shrink-0 ${
+                      formData.perfil === 'RH' ? 'bg-amber-500 text-slate-950 font-bold' : 'bg-slate-200 text-slate-500'
+                    }`}>
+                      <Users className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-xs font-extrabold text-slate-900">Setor RH</p>
+                        {formData.perfil === 'RH' && <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />}
+                      </div>
+                      <p className="text-[11px] text-slate-500 leading-tight mt-0.5">Colaboradores, termos e devoluções</p>
+                    </div>
+                  </button>
 
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Cargo / Função *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Ex: Analista de RH, Suporte TI"
-                    value={formData.cargo}
-                    onChange={(e) => setFormData({ ...formData, cargo: e.target.value })}
-                    className="w-full bg-slate-50 text-slate-900 text-sm p-2.5 rounded-xl border border-slate-200"
-                  />
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, perfil: 'ADMIN' })}
+                    className={`p-3 rounded-2xl border text-left transition flex items-start gap-3 ${
+                      formData.perfil === 'ADMIN'
+                        ? 'bg-blue-50/70 border-dia-navy ring-2 ring-dia-navy/20 shadow-sm'
+                        : 'bg-slate-50 border-slate-200 hover:border-slate-300 hover:bg-white text-slate-600'
+                    }`}
+                  >
+                    <div className={`p-2 rounded-xl shrink-0 ${
+                      formData.perfil === 'ADMIN' ? 'bg-dia-navy text-white font-bold' : 'bg-slate-200 text-slate-500'
+                    }`}>
+                      <ShieldCheck className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-xs font-extrabold text-dia-navy">Administrador</p>
+                        {formData.perfil === 'ADMIN' && <span className="w-1.5 h-1.5 rounded-full bg-dia-navy" />}
+                      </div>
+                      <p className="text-[11px] text-slate-500 leading-tight mt-0.5">Acesso irrestrito a todo o TI e usuários</p>
+                    </div>
+                  </button>
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Cargo / Função *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ex: Analista de RH, Suporte TI, Coordenador"
+                  value={formData.cargo}
+                  onChange={(e) => setFormData({ ...formData, cargo: e.target.value })}
+                  className="w-full bg-slate-50 text-slate-900 text-sm p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-dia-navy focus:bg-white transition"
+                />
               </div>
 
               <div className="flex justify-end space-x-2 pt-4 border-t border-slate-100">

@@ -82,6 +82,11 @@ export const api = {
     return res.data;
   },
 
+  updateFuncionario: async (id: number, data: Partial<Omit<Funcionario, 'id' | 'created_at'>>): Promise<Funcionario> => {
+    const res = await apiClient.put(`/funcionarios/${id}`, data);
+    return res.data;
+  },
+
   deleteFuncionario: async (id: number): Promise<void> => {
     await apiClient.delete(`/funcionarios/${id}`);
   },

@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import type { Equipamento, Funcionario, Movimentacao } from '../types';
-import { RefreshCw, Plus, FileText, ArrowRight, X, CheckCircle, Upload, FileCheck, CheckCircle2, Clock, Trash2 } from 'lucide-react';
+import { RefreshCw, Plus, FileText, ArrowRight, X, CheckCircle, Upload, FileCheck, CheckCircle2, Clock, Trash2, User, Laptop, Smartphone, Box, Layers, Filter, Sparkles, AlertTriangle, PackageX } from 'lucide-react';
 import { api } from '../api';
 import { ConfirmModal } from './ConfirmModal';
+import { SearchableSelect, type SearchableSelectOption } from './SearchableSelect';
 
 interface MovimentacoesViewProps {
   movimentacoes: Movimentacao[];
@@ -44,6 +45,106 @@ export const MovimentacoesView: React.FC<MovimentacoesViewProps> = ({
 
   const disponiveis = equipamentos.filter((e) => e.status === 'DISPONIVEL');
   const emUso = equipamentos.filter((e) => e.status === 'EM_USO');
+
+  const funcionarioOptions: SearchableSelectOption[] = funcionarios.map((f) => ({
+    value: f.id,
+    label: f.nome,
+    sublabel: `${f.cargo} • CPF: ${f.cpf}`,
+    badge: f.departamento,
+    badgeColor: 'bg-dia-navy/10 text-dia-navy border border-dia-navy/20',
+    icon: <User className="w-4 h-4 text-dia-navy" />,
+    searchTerms: `${f.nome} ${f.cpf} ${f.departamento} ${f.cargo} ${f.email || ''}`,
+  }));
+
+  const countAll = disponiveis.length;
+  const countNotebooks = disponiveis.filter(
+    (eq) => eq.categoria === 'Notebook' || eq.tipo?.toLowerCase().includes('notebook')
+  ).length;
+  const countCelulares = disponiveis.filter(
+    (eq) =>
+      eq.categoria === 'Celular' ||
+      eq.tipo?.toLowerCase().includes('celular') ||
+      eq.tipo?.toLowerCase().includes('smartphone')
+  ).length;
+  const countOutros = disponiveis.filter(
+    (eq) =>
+      eq.categoria !== 'Notebook' &&
+      eq.categoria !== 'Celular' &&
+      !eq.tipo?.toLowerCase().includes('notebook') &&
+      !eq.tipo?.toLowerCase().includes('celular') &&
+      !eq.tipo?.toLowerCase().includes('smartphone')
+  ).length;
+
+  const equipamentosDisponiveisFiltrados = disponiveis.filter((eq) => {
+    if (categoriaFiltro === 'ALL') return true;
+    if (categoriaFiltro === 'Notebook') {
+      return eq.categoria === 'Notebook' || eq.tipo?.toLowerCase().includes('notebook');
+    }
+    if (categoriaFiltro === 'Celular') {
+      return (
+        eq.categoria === 'Celular' ||
+        eq.tipo?.toLowerCase().includes('celular') ||
+        eq.tipo?.toLowerCase().includes('smartphone')
+      );
+    }
+    if (categoriaFiltro === 'Outros') {
+      return (
+        eq.categoria !== 'Notebook' &&
+        eq.categoria !== 'Celular' &&
+        !eq.tipo?.toLowerCase().includes('notebook') &&
+        !eq.tipo?.toLowerCase().includes('celular') &&
+        !eq.tipo?.toLowerCase().includes('smartphone')
+      );
+    }
+    return true;
+  });
+
+  const equipamentoOptions: SearchableSelectOption[] = equipamentosDisponiveisFiltrados.map((eq) => {
+    const isNotebook = eq.categoria === 'Notebook' || eq.tipo?.toLowerCase().includes('notebook');
+    const isCelular = eq.categoria === 'Celular' || eq.tipo?.toLowerCase().includes('celular') || eq.tipo?.toLowerCase().includes('smartphone');
+    const icon = isNotebook ? (
+      <Laptop className="w-4 h-4 text-dia-navy" />
+    ) : isCelular ? (
+      <Smartphone className="w-4 h-4 text-emerald-600" />
+    ) : (
+      <Box className="w-4 h-4 text-amber-600" />
+    );
+
+    return {
+      value: eq.id,
+      label: `${eq.marca} ${eq.modelo}`,
+      sublabel: `${eq.tipo}${eq.numero_serie ? ` • S/N: ${eq.numero_serie}` : ''}`,
+      badge: `Patr: ${eq.patrimonio}`,
+      badgeColor: 'bg-amber-100 text-amber-900 border border-amber-300',
+      icon,
+      searchTerms: `${eq.patrimonio} ${eq.marca} ${eq.modelo} ${eq.numero_serie || ''} ${eq.tipo || ''}`,
+    };
+  });
+
+  const devolucaoOptions: SearchableSelectOption[] = emUso.map((eq) => {
+    const isNotebook = eq.categoria === 'Notebook' || eq.tipo?.toLowerCase().includes('notebook');
+    const isCelular = eq.categoria === 'Celular' || eq.tipo?.toLowerCase().includes('celular') || eq.tipo?.toLowerCase().includes('smartphone');
+    const icon = isNotebook ? (
+      <Laptop className="w-4 h-4 text-dia-navy" />
+    ) : isCelular ? (
+      <Smartphone className="w-4 h-4 text-emerald-600" />
+    ) : (
+      <Box className="w-4 h-4 text-amber-600" />
+    );
+
+    const responsavelInfo = eq.responsavel || movimentacoes.find((m) => m.equipamento_id === eq.id && m.tipo_movimentacao === 'ENTREGA')?.funcionario?.nome;
+
+    return {
+      value: eq.id,
+      label: `[${eq.patrimonio}] ${eq.marca} ${eq.modelo}`,
+      sublabel: `${responsavelInfo ? `Em posse de: ${responsavelInfo}` : 'Em uso'}${eq.numero_serie ? ` • S/N: ${eq.numero_serie}` : ''}`,
+      badge: 'EM USO',
+      badgeColor: 'bg-blue-100 text-blue-800 border border-blue-200',
+      icon,
+      searchTerms: `${eq.patrimonio} ${eq.marca} ${eq.modelo} ${responsavelInfo || ''} ${eq.numero_serie || ''}`,
+    };
+  });
+
 
   const handleEntregaSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -371,79 +472,83 @@ export const MovimentacoesView: React.FC<MovimentacoesViewProps> = ({
               </button>
             </div>
             <form onSubmit={handleEntregaSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Colaborador / Responsável *</label>
-                  <select
-                    required
-                    value={funcionarioId}
-                    onChange={(e) => setFuncionarioId(e.target.value ? Number(e.target.value) : '')}
-                    className="w-full bg-slate-50 text-slate-900 text-sm p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-dia-navy"
-                  >
-                    <option value="">-- Selecione o colaborador --</option>
-                    {funcionarios.map((f) => (
-                      <option key={f.id} value={f.id}>
-                        {f.nome} (CPF: {f.cpf})
-                      </option>
-                    ))}
-                  </select>
-                </div>
+              {/* 1. Seleção do Colaborador */}
+              <div className="bg-slate-50/70 rounded-2xl border border-slate-200 p-4 space-y-1">
+                <SearchableSelect
+                  label="1. Colaborador / Destinatário"
+                  placeholder="Pesquise por nome, CPF ou departamento..."
+                  value={funcionarioId}
+                  onChange={(val) => setFuncionarioId(val ? Number(val) : '')}
+                  options={funcionarioOptions}
+                  required
+                  emptyMessage="Nenhum colaborador encontrado com este termo."
+                />
+              </div>
 
+              {/* 2. Seleção do Equipamento com Filtros Rápidos */}
+              <div className="bg-slate-50/70 rounded-2xl border border-slate-200 p-4 space-y-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Filtrar Categoria *</label>
-                  <select
-                    value={categoriaFiltro}
-                    onChange={(e) => {
-                      setCategoriaFiltro(e.target.value);
-                      setEquipamentoId('');
-                    }}
-                    className="w-full bg-slate-50 text-slate-900 text-sm p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-dia-navy font-bold text-dia-navy"
-                  >
-                    <option value="ALL">Todas as Categorias</option>
-                    <option value="Notebook">💻 Notebook</option>
-                    <option value="Celular">📱 Celular</option>
-                    <option value="Outros">📦 Outros (Impressora, Switch, etc)</option>
-                  </select>
-                </div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                      <Filter className="w-3.5 h-3.5 text-dia-navy" />
+                      2. Selecionar Equipamento em Estoque <span className="text-amber-600">*</span>
+                    </span>
+                    <span className="text-[11px] text-slate-500 font-semibold bg-white px-2 py-0.5 rounded-md border border-slate-200">
+                      {disponiveis.length} disponível(is)
+                    </span>
+                  </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Equipamento Disponível *</label>
-                  <select
-                    required
+                  {/* Filtro Rápido por Categorias */}
+                  <div className="flex flex-wrap gap-1.5 mb-3">
+                    {[
+                      { id: 'ALL', label: 'Todos', icon: Layers, count: countAll },
+                      { id: 'Notebook', label: 'Notebooks', icon: Laptop, count: countNotebooks },
+                      { id: 'Celular', label: 'Celulares', icon: Smartphone, count: countCelulares },
+                      { id: 'Outros', label: 'Outros', icon: Box, count: countOutros },
+                    ].map((cat) => {
+                      const Icon = cat.icon;
+                      const isActive = categoriaFiltro === cat.id;
+                      return (
+                        <button
+                          key={cat.id}
+                          type="button"
+                          onClick={() => {
+                            setCategoriaFiltro(cat.id);
+                            setEquipamentoId('');
+                          }}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm ${
+                            isActive
+                              ? 'bg-dia-navy text-white ring-2 ring-dia-navy/20'
+                              : 'bg-white text-slate-600 border border-slate-200 hover:border-slate-300 hover:text-slate-900'
+                          }`}
+                        >
+                          <Icon className="w-3.5 h-3.5" />
+                          <span>{cat.label}</span>
+                          <span
+                            className={`px-1.5 py-0.2 rounded-full text-[10px] font-extrabold ${
+                              isActive ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
+                            }`}
+                          >
+                            {cat.count}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Seletor com Busca de Equipamento */}
+                  <SearchableSelect
+                    placeholder="Pesquise por patrimônio, marca, modelo ou número de série..."
                     value={equipamentoId}
-                    onChange={(e) => setEquipamentoId(e.target.value ? Number(e.target.value) : '')}
-                    className="w-full bg-slate-50 text-slate-900 text-sm p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-dia-navy"
-                  >
-                    <option value="">-- Selecione o equipamento --</option>
-                    {disponiveis
-                      .filter((eq) => {
-                        if (categoriaFiltro === 'ALL') return true;
-                        if (categoriaFiltro === 'Notebook') {
-                          return eq.categoria === 'Notebook' || eq.tipo?.toLowerCase().includes('notebook');
-                        }
-                        if (categoriaFiltro === 'Celular') {
-                          return eq.categoria === 'Celular' || eq.tipo?.toLowerCase().includes('celular') || eq.tipo?.toLowerCase().includes('smartphone');
-                        }
-                        if (categoriaFiltro === 'Outros') {
-                          return (
-                            eq.categoria !== 'Notebook' &&
-                            eq.categoria !== 'Celular' &&
-                            !eq.tipo?.toLowerCase().includes('notebook') &&
-                            !eq.tipo?.toLowerCase().includes('celular')
-                          );
-                        }
-                        return true;
-                      })
-                      .map((eq) => {
-                        const icon = (eq.categoria === 'Notebook' || eq.tipo?.toLowerCase().includes('notebook')) ? '💻' :
-                                     (eq.categoria === 'Celular' || eq.tipo?.toLowerCase().includes('celular')) ? '📱' : '📦';
-                        return (
-                          <option key={eq.id} value={eq.id}>
-                            {icon} [{eq.patrimonio}] {eq.marca} {eq.modelo} {eq.numero_serie ? `(SN: ${eq.numero_serie})` : ''}
-                          </option>
-                        );
-                      })}
-                  </select>
+                    onChange={(val) => setEquipamentoId(val ? Number(val) : '')}
+                    options={equipamentoOptions}
+                    required
+                    emptyMessage={
+                      disponiveis.length === 0
+                        ? 'Nenhum equipamento disponível em estoque no momento.'
+                        : 'Nenhum equipamento encontrado nesta categoria.'
+                    }
+                  />
                 </div>
               </div>
 
@@ -466,17 +571,35 @@ export const MovimentacoesView: React.FC<MovimentacoesViewProps> = ({
               </div>
 
               {/* Condição & Nomes para Assinatura */}
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Condição do Ativo</label>
-                  <select
-                    value={condicaoEntrega}
-                    onChange={(e) => setCondicaoEntrega(e.target.value)}
-                    className="w-full bg-slate-50 text-slate-900 text-sm p-2.5 rounded-xl border border-slate-200"
-                  >
-                    <option value="NOVO">( X ) Equipamento Novo</option>
-                    <option value="USADO">( X ) Usado (Perfeitas Condições)</option>
-                  </select>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Condição do Ativo *</label>
+                  <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-100 rounded-xl border border-slate-200">
+                    <button
+                      type="button"
+                      onClick={() => setCondicaoEntrega('NOVO')}
+                      className={`py-2 px-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                        condicaoEntrega === 'NOVO'
+                          ? 'bg-white text-dia-navy shadow-sm ring-1 ring-slate-200'
+                          : 'text-slate-500 hover:text-slate-800'
+                      }`}
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                      <span>Novo</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCondicaoEntrega('USADO')}
+                      className={`py-2 px-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                        condicaoEntrega === 'USADO'
+                          ? 'bg-white text-dia-navy shadow-sm ring-1 ring-slate-200'
+                          : 'text-slate-500 hover:text-slate-800'
+                      }`}
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Usado</span>
+                    </button>
+                  </div>
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">Nome do Gerente</label>
@@ -489,10 +612,10 @@ export const MovimentacoesView: React.FC<MovimentacoesViewProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">TI</label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">TI Responsável</label>
                   <input
                     type="text"
-                    placeholder="TI"
+                    placeholder="Ex: Leidiane Silva"
                     value={nomeResponsavelTi}
                     onChange={(e) => setNomeResponsavelTi(e.target.value)}
                     className="w-full bg-slate-50 text-slate-900 text-sm p-2.5 rounded-xl border border-slate-200"
@@ -542,34 +665,76 @@ export const MovimentacoesView: React.FC<MovimentacoesViewProps> = ({
               </button>
             </div>
             <form onSubmit={handleDevolucaoSubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Equipamento a Devolver (Atualmente Em Uso) *</label>
-                <select
-                  required
+              <div className="bg-slate-50/70 rounded-2xl border border-slate-200 p-4 space-y-1">
+                <SearchableSelect
+                  label="Equipamento a Devolver (Atualmente Em Uso)"
+                  placeholder="Pesquise por patrimônio, colaborador em posse ou modelo..."
                   value={devolucaoEquipamentoId}
-                  onChange={(e) => setDevolucaoEquipamentoId(e.target.value ? Number(e.target.value) : '')}
-                  className="w-full bg-slate-50 text-slate-900 text-sm p-2.5 rounded-xl border border-slate-200"
-                >
-                  <option value="">-- Escolha o equipamento em uso --</option>
-                  {emUso.map((eq) => (
-                    <option key={eq.id} value={eq.id}>
-                      [{eq.patrimonio}] {eq.tipo} - {eq.marca} {eq.modelo}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(val) => setDevolucaoEquipamentoId(val ? Number(val) : '')}
+                  options={devolucaoOptions}
+                  required
+                  emptyMessage={
+                    emUso.length === 0
+                      ? 'Nenhum equipamento está registrado como EM USO no momento.'
+                      : 'Nenhum equipamento em uso encontrado com este termo.'
+                  }
+                />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Condição na Devolução</label>
-                <select
-                  value={condicaoDevolucao}
-                  onChange={(e) => setCondicaoDevolucao(e.target.value)}
-                  className="w-full bg-slate-50 text-slate-900 text-sm p-2.5 rounded-xl border border-slate-200"
-                >
-                  <option value="PERFEITO_ESTADO">( X ) Em perfeito estado</option>
-                  <option value="DEFEITO">( X ) Apresentando defeito</option>
-                  <option value="FALTANDO_PECAS">( X ) Faltando peças ou acessórios</option>
-                </select>
+                <label className="block text-xs font-bold text-slate-700 mb-2">Condição na Devolução</label>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  {[
+                    {
+                      id: 'PERFEITO_ESTADO',
+                      label: 'Perfeito Estado',
+                      desc: 'Equipamento íntegro',
+                      icon: CheckCircle2,
+                      color: 'text-emerald-600',
+                      active: 'border-emerald-500 bg-emerald-50/70 ring-2 ring-emerald-500/20',
+                    },
+                    {
+                      id: 'DEFEITO',
+                      label: 'Com Defeito',
+                      desc: 'Apresenta avaria/falha',
+                      icon: AlertTriangle,
+                      color: 'text-rose-600',
+                      active: 'border-rose-500 bg-rose-50/70 ring-2 ring-rose-500/20',
+                    },
+                    {
+                      id: 'FALTANDO_PECAS',
+                      label: 'Faltando Peças',
+                      desc: 'Acessório ausente',
+                      icon: PackageX,
+                      color: 'text-amber-600',
+                      active: 'border-amber-500 bg-amber-50/70 ring-2 ring-amber-500/20',
+                    },
+                  ].map((opt) => {
+                    const Icon = opt.icon;
+                    const isSelected = condicaoDevolucao === opt.id;
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => setCondicaoDevolucao(opt.id)}
+                        className={`p-3 rounded-xl border text-left transition flex flex-col justify-between ${
+                          isSelected
+                            ? opt.active
+                            : 'border-slate-200 bg-slate-50 hover:bg-white hover:border-slate-300 text-slate-600'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <Icon className={`w-4 h-4 ${opt.color}`} />
+                          {isSelected && <span className="w-2 h-2 rounded-full bg-dia-navy" />}
+                        </div>
+                        <div>
+                          <p className="text-xs font-extrabold text-slate-900">{opt.label}</p>
+                          <p className="text-[10px] text-slate-500 mt-0.5 leading-tight">{opt.desc}</p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               <div>

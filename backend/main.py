@@ -168,6 +168,39 @@ def get_funcionario(id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Funcionário não encontrado.")
     return func
 
+@app.put("/api/funcionarios/{id}", response_model=schemas.FuncionarioResponse)
+def update_funcionario(id: int, func_update: schemas.FuncionarioUpdate, db: Session = Depends(get_db)):
+    db_func = db.query(models.Funcionario).filter(models.Funcionario.id == id).first()
+    if not db_func:
+        raise HTTPException(status_code=404, detail="Colaborador não encontrado.")
+
+    if func_update.cpf and func_update.cpf.strip() != db_func.cpf:
+        if db.query(models.Funcionario).filter(models.Funcionario.cpf == func_update.cpf.strip(), models.Funcionario.id != id).first():
+            raise HTTPException(status_code=400, detail="CPF já cadastrado para outro colaborador.")
+
+    if func_update.email and func_update.email.strip().lower() != db_func.email.lower():
+        if db.query(models.Funcionario).filter(models.Funcionario.email.ilike(func_update.email.strip()), models.Funcionario.id != id).first():
+            raise HTTPException(status_code=400, detail="E-mail já cadastrado para outro colaborador.")
+
+    old_nome = db_func.nome
+    update_data = func_update.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        if value is not None:
+            if isinstance(value, str):
+                setattr(db_func, key, value.strip())
+            else:
+                setattr(db_func, key, value)
+
+    # Se o nome mudou, sincroniza também o nome nos equipamentos atualmente vinculados a esse responsável
+    if func_update.nome and func_update.nome.strip() != old_nome:
+        equipamentos_atribuidos = db.query(models.Equipamento).filter(models.Equipamento.responsavel == old_nome).all()
+        for eq in equipamentos_atribuidos:
+            eq.responsavel = db_func.nome
+
+    db.commit()
+    db.refresh(db_func)
+    return db_func
+
 @app.delete("/api/funcionarios/{id}")
 def delete_funcionario(id: int, db: Session = Depends(get_db)):
     func = db.query(models.Funcionario).filter(models.Funcionario.id == id).first()

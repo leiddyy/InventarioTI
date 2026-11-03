@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import type { Equipamento, StatusEquipamento } from '../types';
-import { Plus, Search, Filter, Laptop, Edit2, X, Check, Layers, UserCheck, Building2, FileSpreadsheet, FileText, Trash2 } from 'lucide-react';
+import { Plus, Search, Filter, Laptop, Edit2, X, Check, Layers, UserCheck, Building2, FileSpreadsheet, FileText, Trash2, Monitor, Smartphone, Printer, Tv, Network, Mouse, Cable, Box, Sparkles, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { api } from '../api';
 import { ConfirmModal } from './ConfirmModal';
 import { CustomSelect, type CustomSelectOption } from './CustomSelect';
+import { SearchableSelect, type SearchableSelectOption } from './SearchableSelect';
 
 interface EquipamentosViewProps {
   equipamentos: Equipamento[];
@@ -21,6 +22,45 @@ export const CATEGORIAS_LIST = [
   'Cabos',
   'Outros'
 ] as const;
+
+export const CATEGORIAS_OPTIONS: SearchableSelectOption[] = [
+  { value: 'Notebook', label: 'Notebook', icon: <Laptop className="w-4 h-4 text-blue-600" /> },
+  { value: 'Desktop', label: 'Desktop', icon: <Monitor className="w-4 h-4 text-dia-navy" /> },
+  { value: 'Celular', label: 'Celular', icon: <Smartphone className="w-4 h-4 text-emerald-600" /> },
+  { value: 'Impressora', label: 'Impressora', icon: <Printer className="w-4 h-4 text-purple-600" /> },
+  { value: 'Monitor', label: 'Monitor', icon: <Tv className="w-4 h-4 text-cyan-600" /> },
+  { value: 'Switch', label: 'Switch', icon: <Network className="w-4 h-4 text-indigo-600" /> },
+  { value: 'Periféricos', label: 'Periféricos', icon: <Mouse className="w-4 h-4 text-amber-600" /> },
+  { value: 'Cabos', label: 'Cabos', icon: <Cable className="w-4 h-4 text-slate-600" /> },
+  { value: 'Outros', label: 'Outros', icon: <Box className="w-4 h-4 text-slate-600" /> },
+];
+
+export const STATUS_OPTIONS: SearchableSelectOption[] = [
+  {
+    value: 'DISPONIVEL',
+    label: 'Disponível',
+    sublabel: 'Pronto em estoque para entrega',
+    badge: 'Estoque',
+    badgeColor: 'bg-emerald-100 text-emerald-800 border border-emerald-200',
+    icon: <CheckCircle2 className="w-4 h-4 text-emerald-600" />,
+  },
+  {
+    value: 'EM_USO',
+    label: 'Em Uso',
+    sublabel: 'Alocado com colaborador',
+    badge: 'Ativo',
+    badgeColor: 'bg-blue-100 text-blue-800 border border-blue-200',
+    icon: <UserCheck className="w-4 h-4 text-blue-600" />,
+  },
+  {
+    value: 'MANUTENCAO',
+    label: 'Em Manutenção',
+    sublabel: 'Em reparo técnico ou diagnóstico',
+    badge: 'Reparo',
+    badgeColor: 'bg-amber-100 text-amber-800 border border-amber-200',
+    icon: <AlertTriangle className="w-4 h-4 text-amber-600" />,
+  },
+];
 
 export const EquipamentosView: React.FC<EquipamentosViewProps> = ({ equipamentos, onRefresh }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -372,19 +412,14 @@ export const EquipamentosView: React.FC<EquipamentosViewProps> = ({ equipamentos
               </button>
             </div>
             <form onSubmit={handleCreate} className="space-y-4">
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Categoria *</label>
-                  <select
-                    value={formData.categoria}
-                    onChange={(e) => setFormData({ ...formData, categoria: e.target.value, tipo: e.target.value })}
-                    className="w-full bg-slate-50 text-slate-900 text-sm p-2.5 rounded-xl border border-slate-200"
-                  >
-                    {CATEGORIAS_LIST.map((cat) => (
-                      <option key={cat} value={cat}>{cat}</option>
-                    ))}
-                  </select>
-                </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <SearchableSelect
+                  label="Categoria"
+                  value={formData.categoria}
+                  onChange={(val) => setFormData({ ...formData, categoria: String(val), tipo: String(val) })}
+                  options={CATEGORIAS_OPTIONS}
+                  required
+                />
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">Tipo de Equipamento *</label>
                   <input
@@ -519,9 +554,9 @@ export const EquipamentosView: React.FC<EquipamentosViewProps> = ({ equipamentos
                 </div>
               )}
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Quantidade</label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Quantidade *</label>
                   <input
                     type="number"
                     min="1"
@@ -531,28 +566,41 @@ export const EquipamentosView: React.FC<EquipamentosViewProps> = ({ equipamentos
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Condição</label>
-                  <select
-                    value={formData.condicao_inicial}
-                    onChange={(e) => setFormData({ ...formData, condicao_inicial: e.target.value })}
-                    className="w-full bg-slate-50 text-slate-900 text-sm p-2.5 rounded-xl border border-slate-200"
-                  >
-                    <option value="NOVO">Equipamento Novo</option>
-                    <option value="USADO">Usado (Perfeitas Condições)</option>
-                  </select>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Condição *</label>
+                  <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-100 rounded-xl border border-slate-200">
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, condicao_inicial: 'NOVO' })}
+                      className={`py-2 px-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                        formData.condicao_inicial === 'NOVO'
+                          ? 'bg-white text-dia-navy shadow-sm ring-1 ring-slate-200'
+                          : 'text-slate-500 hover:text-slate-800'
+                      }`}
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                      <span>Novo</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, condicao_inicial: 'USADO' })}
+                      className={`py-2 px-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                        formData.condicao_inicial === 'USADO'
+                          ? 'bg-white text-dia-navy shadow-sm ring-1 ring-slate-200'
+                          : 'text-slate-500 hover:text-slate-800'
+                      }`}
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Usado</span>
+                    </button>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Status Inicial</label>
-                  <select
-                    value={formData.status}
-                    onChange={(e) => setFormData({ ...formData, status: e.target.value as StatusEquipamento })}
-                    className="w-full bg-slate-50 text-slate-900 text-sm p-2.5 rounded-xl border border-slate-200"
-                  >
-                    <option value="DISPONIVEL">Disponível</option>
-                    <option value="EM_USO">Em Uso</option>
-                    <option value="MANUTENCAO">Em Manutenção</option>
-                  </select>
-                </div>
+                <SearchableSelect
+                  label="Status Inicial"
+                  value={formData.status}
+                  onChange={(val) => setFormData({ ...formData, status: val as StatusEquipamento })}
+                  options={STATUS_OPTIONS}
+                  required
+                />
               </div>
 
               <div className="flex justify-end space-x-2 pt-4 border-t border-slate-100">
