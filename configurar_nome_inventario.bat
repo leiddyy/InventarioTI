@@ -1,12 +1,28 @@
 @echo off
-title Configurar Atalho http://inventario
+:: Verifica se esta executando como Administrador
+net session >nul 2>&1
+if %errorLevel% neq 0 (
+    echo Solicitando privilegios de Administrador...
+    powershell -Command "Start-Process '%~f0' -Verb RunAs"
+    exit /b
+)
+
 echo ==============================================================
 echo  Configurando o endereco http://inventario no seu computador
 echo ==============================================================
 echo.
-powershell -Command "Start-Process powershell -Verb RunAs -ArgumentList '-Command Add-Content -Path ''C:\Windows\System32\drivers\etc\hosts'' -Value ''`n127.0.0.1 inventario inventario.dia'''"
+
+powershell -ExecutionPolicy Bypass -File "%~dp0fix_hosts.ps1"
+
 echo.
-echo Pronto! Agora basta abrir o navegador e acessar:
-echo    http://inventario
+echo ==============================================================
+echo  Configuracao concluida com sucesso!
+echo ==============================================================
+echo.
+echo Agora voce pode acessar no seu navegador:
+echo   - http://inventario
+echo   - http://inventario.dia
+echo.
+echo (Importante: Se usar o Opera GX, desative o VPN para sites locais)
 echo.
 pause
