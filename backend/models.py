@@ -17,6 +17,7 @@ class TipoMovimentacao(str, enum.Enum):
 class PerfilUsuario(str, enum.Enum):
     ADMIN = "ADMIN"
     RH = "RH"
+    OPERADOR = "OPERADOR"
 
 class Usuario(Base):
     __tablename__ = "usuarios"

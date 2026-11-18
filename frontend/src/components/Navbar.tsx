@@ -14,15 +14,15 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, usuario
 
   // All possible nav items
   const allNavItems = [
-    { id: 'dashboard', label: 'Painel Geral', icon: LayoutDashboard, adminOnly: true },
-    { id: 'equipamentos', label: 'Inventário de Ativos', icon: Laptop, adminOnly: true },
-    { id: 'funcionarios', label: 'Colaboradores', icon: Users, adminOnly: false },
-    { id: 'movimentacoes', label: 'Termos & Movimentações', icon: RefreshCw, adminOnly: false },
-    { id: 'usuarios', label: 'Gestão de Usuários', icon: UserCog, adminOnly: true },
+    { id: 'dashboard', label: 'Painel Geral', icon: LayoutDashboard, allowed: ['ADMIN'] },
+    { id: 'equipamentos', label: 'Inventário de Ativos', icon: Laptop, allowed: ['ADMIN', 'OPERADOR'] },
+    { id: 'funcionarios', label: 'Colaboradores', icon: Users, allowed: ['ADMIN', 'RH', 'OPERADOR'] },
+    { id: 'movimentacoes', label: 'Termos & Movimentações', icon: RefreshCw, allowed: ['ADMIN', 'RH', 'OPERADOR'] },
+    { id: 'usuarios', label: 'Gestão de Usuários', icon: UserCog, allowed: ['ADMIN'] },
   ] as const;
 
-  const isRH = usuario?.perfil === 'RH';
-  const navItems = isRH ? allNavItems.filter((item) => !item.adminOnly) : allNavItems;
+  const perfil = usuario?.perfil || 'ADMIN';
+  const navItems = allNavItems.filter((item) => (item.allowed as readonly string[]).includes(perfil));
 
   const handleTabClick = (id: typeof activeTab) => {
     setActiveTab(id);
@@ -48,9 +48,13 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, usuario
                 DIA Asset Control
               </h1>
               <p className="text-[10px] sm:text-[11px] text-amber-400 font-bold flex items-center gap-1 whitespace-nowrap">
-                {isRH ? (
+                {perfil === 'RH' ? (
                   <>
                     <UserCheck className="w-3 h-3 text-amber-400 shrink-0" /> Módulo RH
+                  </>
+                ) : perfil === 'OPERADOR' ? (
+                  <>
+                    <Laptop className="w-3 h-3 text-emerald-400 shrink-0" /> Módulo Operador (Ativos & Termos)
                   </>
                 ) : (
                   <>
@@ -86,8 +90,13 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, usuario
           <div className="hidden sm:flex items-center space-x-2.5 shrink-0">
             <div className="pl-3 border-l border-white/20 text-right shrink-0">
               <div className="flex items-center justify-end space-x-1">
-                <span className={`px-1.5 py-0.2 rounded text-[9px] sm:text-[10px] font-black uppercase ${isRH ? 'bg-amber-400 text-slate-950' : 'bg-blue-400 text-slate-950'
-                  }`}>
+                <span className={`px-1.5 py-0.2 rounded text-[9px] sm:text-[10px] font-black uppercase ${
+                  perfil === 'RH'
+                    ? 'bg-amber-400 text-slate-950'
+                    : perfil === 'OPERADOR'
+                    ? 'bg-emerald-400 text-slate-950'
+                    : 'bg-blue-400 text-slate-950'
+                }`}>
                   {usuario?.perfil || 'ADMIN'}
                 </span>
                 <p className="text-xs font-bold text-white leading-tight whitespace-nowrap max-w-[140px] truncate">
@@ -130,7 +139,13 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, usuario
           <div className="py-2.5 px-3 bg-dia-navy-dark rounded-xl mb-3 flex items-center justify-between border border-blue-900/60">
             <div>
               <div className="flex items-center space-x-1">
-                <span className="px-1.5 py-0.2 rounded text-[9px] font-black bg-amber-400 text-slate-950 uppercase">
+                <span className={`px-1.5 py-0.2 rounded text-[9px] font-black uppercase ${
+                  perfil === 'RH'
+                    ? 'bg-amber-400 text-slate-950'
+                    : perfil === 'OPERADOR'
+                    ? 'bg-emerald-400 text-slate-950'
+                    : 'bg-blue-400 text-slate-950'
+                }`}>
                   {usuario?.perfil}
                 </span>
                 <p className="text-xs font-bold text-white">{usuario?.nome}</p>

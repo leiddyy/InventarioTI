@@ -1,6 +1,6 @@
 export type StatusEquipamento = 'DISPONIVEL' | 'EM_USO' | 'MANUTENCAO' | 'DESCARTADO';
 export type TipoMovimentacao = 'ENTREGA' | 'DEVOLUCAO';
-export type PerfilUsuario = 'ADMIN' | 'RH';
+export type PerfilUsuario = 'ADMIN' | 'RH' | 'OPERADOR';
 
 export interface Usuario {
   id: number;

@@ -25,6 +25,7 @@ export function App() {
     if (savedUser) {
       const u = JSON.parse(savedUser) as Usuario;
       if (u.perfil === 'RH') return 'funcionarios';
+      if (u.perfil === 'OPERADOR') return 'equipamentos';
     }
     return 'dashboard';
   });
@@ -45,6 +46,8 @@ export function App() {
 
     if (user.perfil === 'RH') {
       setActiveTab('funcionarios');
+    } else if (user.perfil === 'OPERADOR') {
+      setActiveTab('equipamentos');
     } else {
       setActiveTab('dashboard');
     }
@@ -131,7 +134,7 @@ export function App() {
               />
             )}
 
-            {activeTab === 'equipamentos' && usuario.perfil === 'ADMIN' && (
+            {activeTab === 'equipamentos' && (usuario.perfil === 'ADMIN' || usuario.perfil === 'OPERADOR') && (
               <EquipamentosView
                 equipamentos={equipamentos}
                 onRefresh={loadData}

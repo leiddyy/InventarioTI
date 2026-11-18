@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { Usuario, PerfilUsuario } from '../types';
-import { UserPlus, Shield, Trash2, X, Search, Lock, User, KeyRound, Eye, EyeOff, CheckCircle2, Users, ShieldCheck } from 'lucide-react';
+import { UserPlus, Shield, Trash2, X, Search, Lock, User, KeyRound, Eye, EyeOff, CheckCircle2, Users, ShieldCheck, Laptop } from 'lucide-react';
 import { api } from '../api';
 
 interface UsuariosViewProps {
@@ -189,9 +189,11 @@ export const UsuariosView: React.FC<UsuariosViewProps> = ({ usuarios, currentUse
                       <span className={`px-2.5 py-1 rounded-full text-xs font-extrabold ${
                         u.perfil === 'ADMIN'
                           ? 'bg-blue-100 text-blue-900 border border-blue-300'
+                          : u.perfil === 'OPERADOR'
+                          ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
                           : 'bg-amber-100 text-amber-900 border border-amber-300'
                       }`}>
-                        {u.perfil === 'ADMIN' ? '⚡ Administrador (TI)' : '👥 Setor de RH'}
+                        {u.perfil === 'ADMIN' ? '⚡ Administrador (TI)' : u.perfil === 'OPERADOR' ? '📦 Operador (Ativos)' : '👥 Setor de RH'}
                       </span>
                     </td>
                     <td className="py-3.5 px-4 text-right">
@@ -286,11 +288,11 @@ export const UsuariosView: React.FC<UsuariosViewProps> = ({ usuarios, currentUse
               {/* Perfil de Acesso */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1.5">Perfil de Acesso ao Sistema *</label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                   <button
                     type="button"
                     onClick={() => setFormData({ ...formData, perfil: 'RH' })}
-                    className={`p-3 rounded-2xl border text-left transition flex items-start gap-3 ${
+                    className={`p-3 rounded-2xl border text-left transition flex items-start gap-2.5 ${
                       formData.perfil === 'RH'
                         ? 'bg-amber-50/70 border-amber-400 ring-2 ring-amber-400/20 shadow-sm'
                         : 'bg-slate-50 border-slate-200 hover:border-slate-300 hover:bg-white text-slate-600'
@@ -306,14 +308,37 @@ export const UsuariosView: React.FC<UsuariosViewProps> = ({ usuarios, currentUse
                         <p className="text-xs font-extrabold text-slate-900">Setor RH</p>
                         {formData.perfil === 'RH' && <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />}
                       </div>
-                      <p className="text-[11px] text-slate-500 leading-tight mt-0.5">Colaboradores, termos e devoluções</p>
+                      <p className="text-[10px] text-slate-500 leading-tight mt-0.5">Colaboradores e termos</p>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, perfil: 'OPERADOR' })}
+                    className={`p-3 rounded-2xl border text-left transition flex items-start gap-2.5 ${
+                      formData.perfil === 'OPERADOR'
+                        ? 'bg-emerald-50/70 border-emerald-500 ring-2 ring-emerald-500/20 shadow-sm'
+                        : 'bg-slate-50 border-slate-200 hover:border-slate-300 hover:bg-white text-slate-600'
+                    }`}
+                  >
+                    <div className={`p-2 rounded-xl shrink-0 ${
+                      formData.perfil === 'OPERADOR' ? 'bg-emerald-600 text-white font-bold' : 'bg-slate-200 text-slate-500'
+                    }`}>
+                      <Laptop className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-xs font-extrabold text-emerald-950">Operador</p>
+                        {formData.perfil === 'OPERADOR' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />}
+                      </div>
+                      <p className="text-[10px] text-slate-500 leading-tight mt-0.5">Inventário, colaboradores e termos</p>
                     </div>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setFormData({ ...formData, perfil: 'ADMIN' })}
-                    className={`p-3 rounded-2xl border text-left transition flex items-start gap-3 ${
+                    className={`p-3 rounded-2xl border text-left transition flex items-start gap-2.5 ${
                       formData.perfil === 'ADMIN'
                         ? 'bg-blue-50/70 border-dia-navy ring-2 ring-dia-navy/20 shadow-sm'
                         : 'bg-slate-50 border-slate-200 hover:border-slate-300 hover:bg-white text-slate-600'
@@ -326,10 +351,10 @@ export const UsuariosView: React.FC<UsuariosViewProps> = ({ usuarios, currentUse
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5">
-                        <p className="text-xs font-extrabold text-dia-navy">Administrador</p>
+                        <p className="text-xs font-extrabold text-dia-navy">Admin TI</p>
                         {formData.perfil === 'ADMIN' && <span className="w-1.5 h-1.5 rounded-full bg-dia-navy" />}
                       </div>
-                      <p className="text-[11px] text-slate-500 leading-tight mt-0.5">Acesso irrestrito a todo o TI e usuários</p>
+                      <p className="text-[10px] text-slate-500 leading-tight mt-0.5">Acesso total e gestão de usuários</p>
                     </div>
                   </button>
                 </div>
@@ -435,9 +460,11 @@ export const UsuariosView: React.FC<UsuariosViewProps> = ({ usuarios, currentUse
               <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
                 userToChangePassword.perfil === 'ADMIN'
                   ? 'bg-blue-100 text-blue-900 border border-blue-200'
+                  : userToChangePassword.perfil === 'OPERADOR'
+                  ? 'bg-emerald-100 text-emerald-900 border border-emerald-200'
                   : 'bg-amber-100 text-amber-900 border border-amber-200'
               }`}>
-                {userToChangePassword.perfil === 'ADMIN' ? 'Administrador' : 'RH'}
+                {userToChangePassword.perfil === 'ADMIN' ? 'Administrador' : userToChangePassword.perfil === 'OPERADOR' ? 'Operador' : 'RH'}
               </span>
             </div>
 
