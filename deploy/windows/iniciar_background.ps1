@@ -36,9 +36,9 @@ if (-not (Test-Path "$FrontendDir\dist")) {
     npm run build
 }
 
-# Inicia o frontend (preview ou dev)
+# Inicia o frontend (preview na porta 3000 acessível externamente)
 Start-Process -FilePath "npm.cmd" `
-    -ArgumentList "run preview" `
+    -ArgumentList "run preview -- --host 0.0.0.0 --port 3000" `
     -WorkingDirectory $FrontendDir `
     -RedirectStandardOutput "$FrontendDir\frontend_stdout.log" `
     -RedirectStandardError "$FrontendDir\frontend_stderr.log" `
